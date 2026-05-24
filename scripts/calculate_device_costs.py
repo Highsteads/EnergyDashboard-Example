@@ -48,15 +48,25 @@ except ImportError:
 
 # Device IDs to calculate costs for. Each entry:
 #   (indigo_device_id, "short_name_for_variable", "state_column_in_sql")
-# The state_column is whichever state your device reports power in — for most
-# Shelly plugs it's "powerW" or "power", for energy monitors check the plugin docs.
+#
+# IMPORTANT: every plugin uses a different state name for "instantaneous power
+# in Watts". You will need to look at YOUR device in Indigo (right-click →
+# Show Custom States) and find the right one. Some common ones:
+#   - "curEnergyLevel"  — many Shelly plugins, generic Z-Wave power-monitoring
+#   - "powerW"          — some custom plugins
+#   - "power"           — Shelly Gen2/3 native API, some Tasmota devices
+#   - "apparentPower"   — some energy monitors
+#   - "instantPower"    — others again
+# Whatever it is, that state must be a NUMBER in Watts, and SQL Logger must be
+# configured to log it.
+#
+# The examples below are placeholders — replace with your own device IDs and
+# the state column that holds power for each device.
 DEVICES = [
-    (1654902765, "samsung_tv",       "curEnergyLevel"),
-    (149914190,  "tumble_dryer",     "curEnergyLevel"),
-    (1220479210, "washing_machine",  "curEnergyLevel"),
-    (1790668257, "synology_nas",     "curEnergyLevel"),
-    (676702945,  "indigo_server",    "curEnergyLevel"),
-    (21669002,   "dream_router",     "curEnergyLevel"),
+    (123456789,  "tv",              "curEnergyLevel"),
+    (234567890,  "tumble_dryer",    "curEnergyLevel"),
+    (345678901,  "washing_machine", "curEnergyLevel"),
+    (456789012,  "nas",             "curEnergyLevel"),
     # … add your own
 ]
 

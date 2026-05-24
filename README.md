@@ -1,13 +1,25 @@
 # EnergyDashboard-Example
 
-A comprehensive live energy dashboard for [Indigo Domotics](https://www.indigodomo.com), demonstrating what's possible when you combine the
-[Indigo HTML pages skill](https://github.com/simons-plugins/indigo-claude-plugin) (credit: [@simons-plugins](https://github.com/simons-plugins)),
-the [Dashboards plugin](https://github.com/Highsteads/Dashboards), Claude Code and a few hours' worth of "what if it could also show…".
+A comprehensive live energy dashboard for [Indigo Domotics](https://www.indigodomo.com), plus a **per-device hourly cost-calculation script** — built
+with [Claude Code](https://www.anthropic.com/claude-code) on top of the [Indigo HTML pages skill](https://github.com/simons-plugins/indigo-claude-plugin)
+(credit: [@simons-plugins](https://github.com/simons-plugins)).
 
-This is a **worked example** — wired specifically to my (Highsteads / CliveS) setup. The point of it being on GitHub is to give other Indigo users a working dashboard
-they can read, copy and adapt to their own kit. Almost everything except the device IDs at the top of the file is generic.
+The whole thing is **vendor-neutral and configurable** — point it at whatever inverter, thermostats, batteries and tariff variables you have, and it
+adapts. Sections you don't have hide cleanly. Designed so anyone can fork it and have something working in their own setup in an evening.
 
 ![Dashboard screenshot](docs/energy-showcase.jpg)
+
+## 🚀 Two things in this repo
+
+### 1. `pages/energy-showcase.html` — the live dashboard
+A single self-contained HTML file that polls the Indigo REST API every 5 seconds and renders the dashboard you see above. Open it in a browser
+(it'll prompt for your Indigo server URL and API key) or drop it into any plugin's `Contents/Resources/static/pages/` folder. Vendor-neutral config block
+at the top — map your own device IDs and state names to logical roles like "solar power" or "battery SOC".
+
+### 2. `scripts/calculate_device_costs.py` — the cost calculator
+Headline feature for anyone who wants **hourly use and cost per device**. Reads instantaneous power readings from SQL Logger, integrates them
+over time into kWh per hour and per day, multiplies by whichever Octopus (or other) tariff is current, writes the results back to Indigo variables
+that the dashboard (or any other page) can chart. See [`scripts/README.md`](scripts/README.md) for setup.
 
 ## What's in the dashboard
 
@@ -53,14 +65,6 @@ open pages/energy-showcase.html
 
 Then edit `pages/energy-showcase.html` and replace the IDs in the `ID` config block at the top with the ones from your own Indigo setup
 (see [docs/customising.md](docs/customising.md) for a step-by-step walkthrough).
-
-## Cost-per-device calculation script
-
-The `scripts/calculate_device_costs.py` script reads device power readings from SQL Logger, integrates W into kWh over hourly / daily windows,
-multiplies by whichever Octopus rate was active in each period, and writes the results back into Indigo variables. Once those variables exist, the
-dashboard can chart them just like everything else.
-
-See `scripts/README.md` for installation and configuration.
 
 ## How was this built?
 
