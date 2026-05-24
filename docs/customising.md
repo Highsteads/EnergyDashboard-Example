@@ -25,66 +25,62 @@ Every section will hide gracefully or show "no data configured" if you leave it 
 
 ## ENERGY — the solar / battery / grid / home section
 
-This is the main event. Set `deviceId` to the Indigo device that publishes power and energy readings, and adjust the `states` map so each role points at
-the right state name on your device.
+This is the main event. Set `deviceId` to the Indigo device that publishes power and energy readings, then fill in the `states` map so each role points at
+the matching state name on your device.
 
-The default state names match the [SigenEnergyManager](https://github.com/Highsteads/SigenEnergyManager) plugin. If you use something different, you'll
-need to swap the right-hand side of each `states` entry. Some examples:
+### Finding your device's state names
 
-### Sigenergy (my setup — defaults work as-is)
+There is no Indigo-wide standard for energy device state names — every plugin invents its own. To find yours:
+
+1. In the Indigo client, **right-click your inverter / energy monitor device → Show Custom States**
+2. A panel opens listing every state the device publishes and its current value
+3. Identify which state holds each role (solar power in Watts, battery SOC, grid flow, home consumption, etc.) and copy its exact name into the `states` map
+
+For example, if your device exposes a `currentPowerW` state for the live solar output, you'd set:
+
+```javascript
+solar_power_w: "currentPowerW",
+```
+
+### Minimum useful configuration
+
+The hero KPIs, flow diagram and SOC gauge need these nine roles mapped:
 
 ```javascript
 const ENERGY = {
-    deviceId: 1563154425,   // your Sigenergy Inverter device ID
+    deviceId: 123456789,             // ← your inverter / energy device ID
     states: {
-        solar_power_w:    "pvPowerWatts",
-        solar_kwh:        "pvDailyKwh",
-        battery_soc:      "batterySoc",
-        battery_power_w:  "batteryPowerWatts",
-        battery_charge_kwh:    "batteryDailyChargeKwh",
-        battery_discharge_kwh: "batteryDailyDischargeKwh",
-        battery_soh:      "batterySoh",
-        battery_temp_c:   "batteryTempC",
-        battery_cell_v:   "batteryCellVoltage",
-        battery_temp_min: "batteryMinTempC",
-        battery_temp_max: "batteryMaxTempC",
-        grid_power_w:     "gridPowerWatts",
-        grid_import_kwh:  "gridDailyImportKwh",
-        grid_export_kwh:  "gridDailyExportKwh",
-        home_power_w:     "homePowerWatts",
-        home_kwh:         "homeDailyKwh",
+        solar_power_w:    "...",     // instantaneous solar W
+        solar_kwh:        "...",     // today's solar kWh
+        battery_soc:      "...",     // battery SOC 0-100
+        battery_power_w:  "...",     // +ve charging, -ve discharging
+        grid_power_w:     "...",     // +ve importing, -ve exporting
+        grid_import_kwh:  "...",     // today's grid import kWh
+        grid_export_kwh:  "...",     // today's grid export kWh
+        home_power_w:     "...",     // instantaneous home W
+        home_kwh:         "...",     // today's home kWh
     },
-    battery_capacity_kwh: 35.04,
+    battery_capacity_kwh: 10,        // your battery's usable capacity
 };
 ```
 
-### Shelly EM (no battery — leave battery roles unset)
+### If you don't have a battery
 
-```javascript
-const ENERGY = {
-    deviceId: 123456789,
-    states: {
-        solar_power_w:    "channel1_power",
-        solar_kwh:        "channel1_energy_today",
-        grid_power_w:     "channel2_power",
-        grid_export_kwh:  "channel2_returned_energy_today",
-        grid_import_kwh:  "channel2_energy_today",
-        home_power_w:     "channel3_power",
-        home_kwh:         "channel3_energy_today",
-        // battery_* left unset — battery section will show 0/N/A
-    },
-    battery_capacity_kwh: 0,
-};
-```
+Leave the `battery_*` roles as empty strings — the SOC gauge will show 0% and the battery health card will be empty, but everything else still works. The
+flow diagram pipes for the battery just won't animate.
 
-### No solar / battery at all — just leave it unset
+### If you don't have solar at all
 
-```javascript
-const ENERGY = { deviceId: null, states: {}, battery_capacity_kwh: 0 };
-```
+Set `deviceId: null` to hide the entire energy section. The dashboard is still useful for tariffs, gas, heating, security and device inventory.
 
-The whole energy section will show zeros. Charts will still render, just empty. If you want to hide the section entirely, comment out the section's HTML in
-the `buildLayout()` function.
+### Sign conventions
+
+The dashboard expects:
+
+- `battery_power_w`: positive when **charging**, negative when **discharging**
+- `grid_power_w`: positive when **importing**, negative when **exporting**
+
+If your device uses the opposite convention, multiply by -1 in a custom device wrapper or change the comparison logic in the render function.
 
 ## OPTIMISER — optional decision-making device
 
@@ -96,16 +92,11 @@ The state name map works exactly like ENERGY — match the role keys to whatever
 
 ## HEATING — auto-discovers any thermostat
 
-By default, the heating section auto-discovers every device whose class contains `"Thermostat"`. That covers:
+By default, the heating section auto-discovers every device whose class contains `"Thermostat"` — that's the standard Indigo thermostat class, which
+just about every thermostat plugin uses.
 
-- Insteon thermostats
-- Z-Wave thermostats
-- Nest, Ecobee, Honeywell via Indigo plugins
-- EvoHome via EvoHomeControl plugin
-- RAMSES ESP TRVs
-- Generic Indigo thermostat devices
-
-The +/− buttons call `indigo.thermostat.setHeatSetpoint`, which is the standard Indigo thermostat command — works with any of the above.
+The +/− buttons call `indigo.thermostat.setHeatSetpoint`, which is the standard Indigo thermostat command — works with anything that follows the
+standard class.
 
 If you'd rather pick specific zones manually instead of auto-discovering all of them:
 
@@ -124,12 +115,8 @@ If you don't have any thermostats, the heating section will just show empty.
 
 ## BACKUP_BATTERIES — auto-discovers any battery device
 
-Auto-discovers any device with a numeric `batteryLevel` (or `soc` / `batterySoc`) state. That covers:
-
-- EcoFlow (via EcoFlowCloud plugin)
-- Bluetti
-- UPS devices that report SOC
-- Any custom device with a battery state
+Auto-discovers any device with a numeric `batteryLevel` (or `soc` / `batterySoc`) state. That covers UPS devices, portable power stations, plugins that
+expose battery telemetry, and anything custom you've wired up.
 
 Manual override works the same as heating:
 
@@ -158,9 +145,9 @@ const VARIABLES = {
     export_month_kwh:     "export_month_kwh",
     export_month_revenue: "export_month_revenue_gbp",
     export_yesterday_kwh: "export_yesterday_kwh",
-    yesterday_pv_kwh:     "sigen_today_pv_kwh",
-    yesterday_home_kwh:   "sigen_today_home_kwh",
-    yesterday_import_kwh: "sigen_today_import_kwh",
+    yesterday_pv_kwh:     "yesterday_pv_kwh",
+    yesterday_home_kwh:   "yesterday_home_kwh",
+    yesterday_import_kwh: "yesterday_import_kwh",
     optimiser_plan:       "battery_optimiser_status",
 };
 ```

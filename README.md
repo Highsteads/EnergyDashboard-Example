@@ -19,16 +19,15 @@ Every section live-polls the Indigo REST API every 5 seconds:
 - **Today's totals** — same data shown several different ways (bars, donut, polar area, stacked, today-vs-yesterday)
 - **Tariffs** — import today / tomorrow, export, gas, plus a comparison radar
 - **Tomorrow forecast** — solar vs need, surplus headed for battery/export
-- **Backup batteries** — auto-discovered SOC rings for any device with a `batteryLevel` state (UPS, portable power stations, EcoFlow, Bluetti, etc.)
-- **Heating zones** — auto-discovered from any thermostat device (Insteon, Z-Wave, Nest, Ecobee, EvoHome, RAMSES, generic Indigo) with bar chart + interactive tiles with +/− buttons that change the setpoint live
+- **Backup batteries** — auto-discovered SOC rings for any device that exposes a `batteryLevel` state (UPS units, portable power stations, etc.)
+- **Heating zones** — auto-discovered from any thermostat device that uses Indigo's standard thermostat class, with bar chart + interactive tiles with +/− buttons that change the setpoint live
 - **Gas consumption** — today vs yesterday, month-so-far, gas-vs-electricity
 - **Security overview** — donut, list of open contacts, active motion, alerts
 - **Device inventory** — by category (three views), automation rule counts, plugin device share
 - **Optimiser** — live decision text from any battery/energy manager device that publishes one (optional)
 - **System health** — total device count, healthy vs errored
 
-The screenshot below shows my own setup (Sigenergy solar/battery, RAMSES heating, EcoFlow backup batteries, Octopus tariffs). Yours will look different
-depending on what's wired in — sections auto-adapt or hide cleanly.
+The screenshot below shows it running against my own setup. Yours will look different depending on what's wired in — sections auto-adapt or hide cleanly.
 
 ## Prerequisites
 
@@ -74,10 +73,10 @@ Total wall-clock time, prompt to deployed live page: roughly 5 minutes.
 
 ## Adapting for your setup
 
-The CONFIG block at the top of `pages/energy-showcase.html` is role-based — you map your own devices to logical roles like "energy device that publishes
+The CONFIG block at the top of `pages/energy-showcase.html` is role-based — you map your own devices to logical roles like "the device that publishes
 solar power" rather than naming specific plugins. The page works with:
 
-- **Any inverter / energy monitor** that publishes solar power, battery SOC, grid power and home consumption (Sigenergy, Solis, Enphase, generic Shelly EM with custom states, etc.)
+- **Any inverter or energy monitor** that publishes solar power, battery SOC, grid power and home consumption
 - **Any thermostat device** for the heating section (auto-discovered — no config needed)
 - **Any device with a `batteryLevel` state** for the backup batteries section (auto-discovered)
 - **Indigo variables** for tariff and gas data — variable names are configurable

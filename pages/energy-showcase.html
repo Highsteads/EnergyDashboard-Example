@@ -8,7 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
     <meta name="indigo-page-name" content="Energy Showcase">
     <meta name="indigo-page-icon" content="bolt.fill">
-    <meta name="indigo-page-description" content="Comprehensive live dashboard — Sigenergy, Octopus, RAMSES, EcoFlow, security, system">
+    <meta name="indigo-page-description" content="Comprehensive live energy / heating / security dashboard for Indigo">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Highsteads Energy">
@@ -251,37 +251,45 @@ class IndigoAPI {
 // ⚙️  CONFIG — EDIT THIS BLOCK TO MATCH YOUR OWN INDIGO SETUP
 // ═════════════════════════════════════════════════════════════════════════════
 // To find a device ID: in the Indigo client, right-click → Copy ID.
+// To find a device's state names: right-click → Show Custom States.
 // Every section is OPTIONAL — leave a deviceId as null and that section will
 // either hide itself or fall back to auto-discovery. See docs/customising.md
-// for examples mapped to different plugins (Sigenergy, Solis, Enphase, Shelly EM…).
+// for the full walk-through.
 // ═════════════════════════════════════════════════════════════════════════════
 
 // ── ENERGY: solar / battery / grid / home ────────────────────────────────────
-// Any inverter or energy-monitor device that publishes these states works here.
-// The defaults below match the SigenEnergyManager plugin's state names — if you
-// use a different plugin, set deviceId and edit the state keys to match.
-// Set deviceId to null to hide the whole energy section.
+// Set deviceId to your inverter or energy-monitor device, then map each "role"
+// below to the actual state name your device publishes. Different plugins use
+// different naming conventions — there's no Indigo-wide standard for energy
+// devices, so you'll need to look up your device's state names in the Indigo
+// client (right-click device → Custom States) and fill them in here.
+// Leave deviceId as null to hide the whole energy section.
 const ENERGY = {
     deviceId: null,                     // ← your inverter / energy device ID
     states: {
-        solar_power_w:    "pvPowerWatts",
-        solar_kwh:        "pvDailyKwh",
-        battery_soc:      "batterySoc",
-        battery_power_w:  "batteryPowerWatts",   // +ve = charging, -ve = discharging
-        battery_charge_kwh:    "batteryDailyChargeKwh",
-        battery_discharge_kwh: "batteryDailyDischargeKwh",
-        battery_soh:      "batterySoh",
-        battery_temp_c:   "batteryTempC",
-        battery_cell_v:   "batteryCellVoltage",
-        battery_temp_min: "batteryMinTempC",
-        battery_temp_max: "batteryMaxTempC",
-        grid_power_w:     "gridPowerWatts",      // +ve = importing, -ve = exporting
-        grid_import_kwh:  "gridDailyImportKwh",
-        grid_export_kwh:  "gridDailyExportKwh",
-        home_power_w:     "homePowerWatts",
-        home_kwh:         "homeDailyKwh",
+        // Required for the hero KPIs, flow diagram and SOC gauge:
+        solar_power_w:    "",   // e.g. instantaneous solar generation in Watts
+        solar_kwh:        "",   // today's solar generation in kWh
+        battery_soc:      "",   // battery state of charge as a 0-100 percentage
+        battery_power_w:  "",   // +ve = charging, -ve = discharging
+        grid_power_w:     "",   // +ve = importing, -ve = exporting
+        grid_import_kwh:  "",   // today's grid import in kWh
+        grid_export_kwh:  "",   // today's grid export in kWh
+        home_power_w:     "",   // instantaneous home consumption in Watts
+        home_kwh:         "",   // today's home consumption in kWh
+
+        // Optional — used for the today's-totals charts:
+        battery_charge_kwh:    "",
+        battery_discharge_kwh: "",
+
+        // Optional — used for the battery health card:
+        battery_soh:      "",
+        battery_temp_c:   "",
+        battery_cell_v:   "",
+        battery_temp_min: "",
+        battery_temp_max: "",
     },
-    battery_capacity_kwh: 10,           // total usable battery capacity
+    battery_capacity_kwh: 10,           // total usable battery capacity in kWh
 };
 
 // ── OPTIMISER (optional): a separate "manager" device that publishes an action
@@ -289,22 +297,23 @@ const ENERGY = {
 const OPTIMISER = {
     deviceId: null,
     states: {
-        manager_status:    "managerStatus",
-        current_action:    "currentAction",
-        current_reason:    "currentReason",
-        tariff_active:     "tariffActive",
-        dawn_viable:       "dawnViable",
-        rate_today:        "rateToday",
-        rate_tomorrow:     "rateTomorrow",
-        tomorrow_solar:    "tomorrowSolarKwh",
-        tomorrow_need:     "tomorrowNeedKwh",
-        last_update:       "lastUpdate",
+        manager_status:    "",   // e.g. "Running"
+        current_action:    "",   // e.g. "Charging from grid"
+        current_reason:    "",   // free-text reasoning
+        tariff_active:     "",
+        dawn_viable:       "",
+        rate_today:        "",   // pence/kWh
+        rate_tomorrow:     "",
+        tomorrow_solar:    "",   // forecast kWh
+        tomorrow_need:     "",   // forecast kWh
+        last_update:       "",
     },
 };
 
 // ── HEATING: thermostat zones ────────────────────────────────────────────────
-// Auto-discover finds every device whose class contains "Thermostat" — works
-// with Insteon, Z-Wave, Nest, Ecobee, EvoHome, RAMSES, generic Indigo thermostats.
+// Auto-discover finds every device whose Indigo class contains "Thermostat" —
+// works with any thermostat plugin that uses the standard Indigo thermostat
+// class (which is most of them).
 // Set to a list of [id, "Display Name"] pairs if you want manual control.
 const HEATING = {
     auto_discover: true,
@@ -319,22 +328,32 @@ const BACKUP_BATTERIES = {
 };
 
 // ── VARIABLES: Indigo variables holding tariff & gas data ────────────────────
-// All optional — missing variables show as zero. Adjust names to match whatever
-// your Octopus / tariff integration writes.
+// All optional — missing variables show as zero. The right-hand string is the
+// actual Indigo variable name to read. Adjust to whatever your tariff / gas
+// integration writes; if a variable doesn't exist, the relevant figure shows 0.
 const VARIABLES = {
+    // Tariff (pence per kWh)
+    elec_unit_rate_p:        "elec_unit_rate_p",
+    export_rate_p:           "export_rate_p",
+    gas_unit_rate_p:         "gas_unit_rate_p",
+
+    // Gas usage (kWh)
     gas_today_kwh:           "gas_today_kwh",
     gas_yesterday_kwh:       "gas_yesterday_kwh",
     gas_month_kwh:           "gas_month_kwh",
-    gas_unit_rate_p:         "gas_unit_rate_p",
-    elec_unit_rate_p:        "elec_unit_rate_p",
-    export_rate_p:           "export_rate_p",
+
+    // Export totals
     export_month_kwh:        "export_month_kwh",
     export_month_revenue:    "export_month_revenue_gbp",
     export_yesterday_kwh:    "export_yesterday_kwh",
-    yesterday_pv_kwh:        "sigen_today_pv_kwh",       // yesterday's PV total
-    yesterday_home_kwh:      "sigen_today_home_kwh",     // yesterday's home consumption
-    yesterday_import_kwh:    "sigen_today_import_kwh",   // yesterday's import
-    optimiser_plan:          "battery_optimiser_status", // free-text overnight plan
+
+    // Yesterday's totals (for the today-vs-yesterday chart)
+    yesterday_pv_kwh:        "yesterday_pv_kwh",
+    yesterday_home_kwh:      "yesterday_home_kwh",
+    yesterday_import_kwh:    "yesterday_import_kwh",
+
+    // Optional free-text plan from your optimiser
+    optimiser_plan:          "battery_optimiser_status",
 };
 
 // ── Polling interval (ms) — 5s is a sensible default ──
@@ -729,7 +748,7 @@ function render({devices, variables}) {
 
     // ── Heating zones (auto-discover any thermostat or manual list) ──
     // Auto-discover: any device whose class contains "Thermostat" — works for
-    // Insteon, Z-Wave, Nest, Ecobee, EvoHome, RAMSES, generic Indigo thermostats.
+    // any thermostat plugin that uses the standard Indigo thermostat class.
     let zoneDevices;
     if (HEATING.devices && HEATING.devices.length) {
         zoneDevices = HEATING.devices.map(([id, name]) => ({id, name, dev: byId[id]}));
@@ -827,7 +846,7 @@ function render({devices, variables}) {
     devices.forEach(d => {
         if (/Dimmer/.test(d.class || "")) counts.lights++;
         else if (/Thermostat/.test(d.class || "")) counts.heating++;
-        else if (d.pluginId && /sigenergy|shellydirect|ecoflow|sigen/i.test(d.pluginId)) counts.energy++;
+        else if (d.id === ENERGY.deviceId || d.id === OPTIMISER.deviceId) counts.energy++;
         else if (/Sensor/.test(d.class || "")) counts.sensors++;
         else if (/Relay/.test(d.class || "")) counts.switches++;
         else counts.other++;
