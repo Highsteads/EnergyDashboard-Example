@@ -84,9 +84,10 @@ swapping those device IDs for things you do have. See [docs/customising.md](docs
 
 ## Optional: the `IndigoSecrets.py` pattern
 
-Some Indigo users (myself included) keep API keys, server URLs and other sensitive values in a single file at
-`/Library/Application Support/Perceptive Automation/IndigoSecrets.py` rather than in PluginConfig dialogs or hard-coded into scripts. **This is entirely
-optional** — nothing in this repo requires it. `IndigoSecrets_example.py` is shipped at the repo root as a template if you want to adopt the pattern.
+I keep my API keys, server URLs and other sensitive values in a single file at
+`/Library/Application Support/Perceptive Automation/IndigoSecrets.py` rather than in PluginConfig dialogs or hard-coded into scripts. As far as I know nobody
+else does it this way, but it works for me across all my plugins so I have wired the same pattern through here. **It is entirely optional** — nothing in
+this repo requires it. `IndigoSecrets_example.py` is shipped at the repo root as a template if you fancy adopting it too.
 
 See [docs/secrets-pattern.md](docs/secrets-pattern.md) for the full explanation of how it works, the canonical import pattern, and where it's useful (e.g. if
 you decide to extend the cost-calc script with a direct Octopus API fetcher rather than relying on an existing plugin).

@@ -1,8 +1,8 @@
 # Optional: the `IndigoSecrets.py` pattern
 
-This is a convention some Indigo users (myself included) have adopted for keeping API keys, tokens, server URLs and other sensitive values out of plugin code, script files and PluginConfig dialogs. **It's entirely optional** — nothing in this repo requires it. If you'd rather configure things directly in scripts or PluginConfig, that works fine too.
+This is the convention I use across all my plugins for keeping API keys, tokens, server URLs and other sensitive values out of plugin code, script files and PluginConfig dialogs. As far as I know nobody else in the Indigo community does it this way — it's just my own way of keeping things tidy. **It's entirely optional** — nothing in this repo requires it. If you'd rather configure things directly in scripts or PluginConfig, that works fine too.
 
-If you do already use this pattern across your other plugins, this doc explains how the dashboard and cost-calc script fit in.
+If you fancy adopting the pattern (or are just curious how it works), this doc explains how the dashboard and cost-calc script fit in.
 
 ## The idea
 
@@ -99,7 +99,7 @@ else:
 
 - If you only have one or two plugins and they each have their own secrets, PluginConfig is simpler and works fine
 - If you don't share your code publicly, hard-coding values is also fine — the trade-off is just convenience-vs-security
-- The pattern is my own convention, not an Indigo-blessed one. Other developers may not have adopted it.
+- The pattern is just my own way of doing things, not something the wider Indigo community uses — so if you fork the script and share it with someone else, they may need an explainer.
 
 ## See also
 

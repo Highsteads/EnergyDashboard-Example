@@ -77,9 +77,9 @@ HTML if you'd rather hide them.
 
 ## Optional: `IndigoSecrets.py`
 
-If you already use the `IndigoSecrets.py` pattern (a single file at `/Library/Application Support/Perceptive Automation/IndigoSecrets.py` that holds
-API keys and other sensitive values), the cost-calc script in this repo opts into it automatically — it tries to import `OCTOPUS_API_KEY` and
-`OCTOPUS_ACCOUNT` with a per-key `try/except` so missing values are harmless.
+I keep my own API keys and other sensitive values in a single file at `/Library/Application Support/Perceptive Automation/IndigoSecrets.py`. It is
+just my own convention — as far as I know nobody else does it this way — but the cost-calc script opts into it automatically if the file exists,
+importing `OCTOPUS_API_KEY` and `OCTOPUS_ACCOUNT` with a per-key `try/except` so missing values are harmless.
 
 If you don't use the pattern, ignore this — everything works without it. See [secrets-pattern.md](secrets-pattern.md) for the full setup if you fancy
 adopting it.
