@@ -16,16 +16,19 @@ Every section live-polls the Indigo REST API every 5 seconds:
 - **Hero strip** — solar, battery SOC, grid flow, home draw, gas, monthly export revenue
 - **Live energy flow** — animated SVG showing solar → battery / home / grid in real time
 - **Battery SOC gauge + health card** (SoH, cell voltage, temperature range)
-- **Today's totals** — same data shown four different ways (bars, donut, polar area, stacked, today-vs-yesterday)
-- **Octopus tariffs** — Tracker today / tomorrow, Outgoing export, gas, legacy comparison radar
+- **Today's totals** — same data shown several different ways (bars, donut, polar area, stacked, today-vs-yesterday)
+- **Tariffs** — import today / tomorrow, export, gas, plus a comparison radar
 - **Tomorrow forecast** — solar vs need, surplus headed for battery/export
-- **EcoFlow backup batteries** — SOC rings for each unit
-- **RAMSES heating zones** — bar chart + interactive tiles with +/− buttons that actually change the TRV setpoints
+- **Backup batteries** — auto-discovered SOC rings for any device with a `batteryLevel` state (UPS, portable power stations, EcoFlow, Bluetti, etc.)
+- **Heating zones** — auto-discovered from any thermostat device (Insteon, Z-Wave, Nest, Ecobee, EvoHome, RAMSES, generic Indigo) with bar chart + interactive tiles with +/− buttons that change the setpoint live
 - **Gas consumption** — today vs yesterday, month-so-far, gas-vs-electricity
 - **Security overview** — donut, list of open contacts, active motion, alerts
 - **Device inventory** — by category (three views), automation rule counts, plugin device share
-- **Battery optimiser** — verbatim live decision text from the SigenEnergyManager plugin
-- **System health** — Mac Mini disk/RAM/load
+- **Optimiser** — live decision text from any battery/energy manager device that publishes one (optional)
+- **System health** — total device count, healthy vs errored
+
+The screenshot below shows my own setup (Sigenergy solar/battery, RAMSES heating, EcoFlow backup batteries, Octopus tariffs). Yours will look different
+depending on what's wired in — sections auto-adapt or hide cleanly.
 
 ## Prerequisites
 
@@ -71,16 +74,18 @@ Total wall-clock time, prompt to deployed live page: roughly 5 minutes.
 
 ## Adapting for your setup
 
-The dashboard is wired for:
+The CONFIG block at the top of `pages/energy-showcase.html` is role-based — you map your own devices to logical roles like "energy device that publishes
+solar power" rather than naming specific plugins. The page works with:
 
-- **Sigenergy** inverter + battery (via [SigenEnergyManager](https://github.com/Highsteads/SigenEnergyManager) plugin)
-- **RAMSES ESP** TRVs (12 zones)
-- **EcoFlow** portable batteries (3 units)
-- **Octopus Energy** Tracker import + Outgoing export tariffs
-- **SQL Logger** for historical kWh
+- **Any inverter / energy monitor** that publishes solar power, battery SOC, grid power and home consumption (Sigenergy, Solis, Enphase, generic Shelly EM with custom states, etc.)
+- **Any thermostat device** for the heating section (auto-discovered — no config needed)
+- **Any device with a `batteryLevel` state** for the backup batteries section (auto-discovered)
+- **Indigo variables** for tariff and gas data — variable names are configurable
+- **SQL Logger** for the per-device cost script (optional)
 
-If you don't have any of those, the relevant section will degrade gracefully (show 0s or "no data") rather than break — but the real value is in
-swapping those device IDs for things you do have. See [docs/customising.md](docs/customising.md) for which IDs are in which section.
+See [docs/customising.md](docs/customising.md) for the full config walk-through plus example mappings for common setups.
+
+If you only have some of these (e.g. solar but no battery, or thermostats but no solar), the missing sections show "no data configured" rather than break.
 
 ## Optional: the `IndigoSecrets.py` pattern
 

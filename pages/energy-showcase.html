@@ -250,45 +250,92 @@ class IndigoAPI {
 // ═════════════════════════════════════════════════════════════════════════════
 // ⚙️  CONFIG — EDIT THIS BLOCK TO MATCH YOUR OWN INDIGO SETUP
 // ═════════════════════════════════════════════════════════════════════════════
-// Replace the device IDs below with the ones from your own Indigo install.
-// To find them: in Indigo client, right-click a device → Copy Internal ID, or
-// run `indigo.devices[NAME].id` in the Scripting Shell.
-// Sections you don't use will degrade gracefully (show 0s rather than break).
+// To find a device ID: in the Indigo client, right-click → Copy ID.
+// Every section is OPTIONAL — leave a deviceId as null and that section will
+// either hide itself or fall back to auto-discovery. See docs/customising.md
+// for examples mapped to different plugins (Sigenergy, Solis, Enphase, Shelly EM…).
 // ═════════════════════════════════════════════════════════════════════════════
-const ID = {
-    // ── Sigenergy / inverter & battery (SigenEnergyManager plugin) ──
-    BATTERY_MANAGER: 93061288,    // Battery Manager device — currentAction, currentReason, etc.
-    SIGEN_INVERTER:  1563154425,  // Sigenergy Inverter — PV/grid/battery power, daily kWh
-    SOLAR_FORECAST:  525675308,   // Solar Forecast device
-    TARIFF_MONITOR:  1943281479,  // Tariff Monitor
 
-    // ── RAMSES ESP heating zones (uk.co.clives.ramses.esp) ──
-    // Each entry is [device_id, "Display Name"]
-    ZONES: [
-        [1886011292, "Bathroom"],
-        [545736860,  "Bedroom 1"],
-        [72187173,   "Bedroom 2"],
-        [1006487156, "Bedroom 3"],
-        [430908914,  "Conservatory"],
-        [82851831,   "Dining Room"],
-        [766064835,  "En Suite"],
-        [228383134,  "Hall Bedroom"],
-        [1138438804, "Hall Kitchen"],
-        [963505712,  "Living Room Door"],
-        [110516814,  "Living Room Front"],
-        [1376483274, "Utility Room"],
-    ],
-
-    // ── EcoFlow portable batteries (ecoflowcloud plugin) ──
-    ECOFLOW: [
-        [1786840251, "Bathroom River 3+"],
-        [1602125649, "Living Room River 3+"],
-        [198876292,  "Server Room Delta 3"],
-    ],
+// ── ENERGY: solar / battery / grid / home ────────────────────────────────────
+// Any inverter or energy-monitor device that publishes these states works here.
+// The defaults below match the SigenEnergyManager plugin's state names — if you
+// use a different plugin, set deviceId and edit the state keys to match.
+// Set deviceId to null to hide the whole energy section.
+const ENERGY = {
+    deviceId: null,                     // ← your inverter / energy device ID
+    states: {
+        solar_power_w:    "pvPowerWatts",
+        solar_kwh:        "pvDailyKwh",
+        battery_soc:      "batterySoc",
+        battery_power_w:  "batteryPowerWatts",   // +ve = charging, -ve = discharging
+        battery_charge_kwh:    "batteryDailyChargeKwh",
+        battery_discharge_kwh: "batteryDailyDischargeKwh",
+        battery_soh:      "batterySoh",
+        battery_temp_c:   "batteryTempC",
+        battery_cell_v:   "batteryCellVoltage",
+        battery_temp_min: "batteryMinTempC",
+        battery_temp_max: "batteryMaxTempC",
+        grid_power_w:     "gridPowerWatts",      // +ve = importing, -ve = exporting
+        grid_import_kwh:  "gridDailyImportKwh",
+        grid_export_kwh:  "gridDailyExportKwh",
+        home_power_w:     "homePowerWatts",
+        home_kwh:         "homeDailyKwh",
+    },
+    battery_capacity_kwh: 10,           // total usable battery capacity
 };
 
-// ── Battery capacity (kWh) — used to convert SOC% to stored kWh ──
-const BATTERY_CAPACITY_KWH = 35.04;
+// ── OPTIMISER (optional): a separate "manager" device that publishes an action
+// and reasoning string. Hides if deviceId is null.
+const OPTIMISER = {
+    deviceId: null,
+    states: {
+        manager_status:    "managerStatus",
+        current_action:    "currentAction",
+        current_reason:    "currentReason",
+        tariff_active:     "tariffActive",
+        dawn_viable:       "dawnViable",
+        rate_today:        "rateToday",
+        rate_tomorrow:     "rateTomorrow",
+        tomorrow_solar:    "tomorrowSolarKwh",
+        tomorrow_need:     "tomorrowNeedKwh",
+        last_update:       "lastUpdate",
+    },
+};
+
+// ── HEATING: thermostat zones ────────────────────────────────────────────────
+// Auto-discover finds every device whose class contains "Thermostat" — works
+// with Insteon, Z-Wave, Nest, Ecobee, EvoHome, RAMSES, generic Indigo thermostats.
+// Set to a list of [id, "Display Name"] pairs if you want manual control.
+const HEATING = {
+    auto_discover: true,
+    devices: null,                      // e.g. [[123456, "Lounge"], [789012, "Kitchen"]]
+};
+
+// ── BACKUP BATTERIES: portable power stations, UPS, anything with an SOC ─────
+// Auto-discover finds any device with a numeric batteryLevel or soc state > 0.
+const BACKUP_BATTERIES = {
+    auto_discover: true,
+    devices: null,                      // e.g. [[111222, "Garage UPS"], ...]
+};
+
+// ── VARIABLES: Indigo variables holding tariff & gas data ────────────────────
+// All optional — missing variables show as zero. Adjust names to match whatever
+// your Octopus / tariff integration writes.
+const VARIABLES = {
+    gas_today_kwh:           "gas_today_kwh",
+    gas_yesterday_kwh:       "gas_yesterday_kwh",
+    gas_month_kwh:           "gas_month_kwh",
+    gas_unit_rate_p:         "gas_unit_rate_p",
+    elec_unit_rate_p:        "elec_unit_rate_p",
+    export_rate_p:           "export_rate_p",
+    export_month_kwh:        "export_month_kwh",
+    export_month_revenue:    "export_month_revenue_gbp",
+    export_yesterday_kwh:    "export_yesterday_kwh",
+    yesterday_pv_kwh:        "sigen_today_pv_kwh",       // yesterday's PV total
+    yesterday_home_kwh:      "sigen_today_home_kwh",     // yesterday's home consumption
+    yesterday_import_kwh:    "sigen_today_import_kwh",   // yesterday's import
+    optimiser_plan:          "battery_optimiser_status", // free-text overnight plan
+};
 
 // ── Polling interval (ms) — 5s is a sensible default ──
 const POLL_INTERVAL_MS = 5000;
@@ -401,10 +448,10 @@ function buildLayout() {
             </div>
         </div>
 
-        <h2 class="section">🔋 EcoFlow backup fleet</h2>
+        <h2 class="section">🔋 Backup batteries</h2>
         <div class="grid"><div class="card s12"><div class="eco-row" id="ecoRow"></div></div></div>
 
-        <h2 class="section">♨ Heating — RAMSES TRVs (tap +/− to change setpoint)</h2>
+        <h2 class="section">♨ Heating zones (tap +/− to change setpoint)</h2>
         <div class="grid">
             <div class="card s8"><h3>Per-zone temperature vs setpoint</h3><div class="chart-wrap tall"><canvas id="heatBars"></canvas></div></div>
             <div class="card s4"><h3>Calling for heat</h3><div id="callingForHeat"></div></div>
@@ -472,30 +519,39 @@ function render({devices, variables}) {
     const varByName = {};
     variables.forEach(v => varByName[v.name] = v.value);
 
-    const sigen = byId[ID.SIGEN_INVERTER];
-    const battMgr = byId[ID.BATTERY_MANAGER];
-    const sigenS = (sigen && sigen.states) || {};
-    const mgrS = (battMgr && battMgr.states) || {};
-
+    // ── Generic helpers — pull state values by ROLE not by hardcoded name ──
     const num = (v, d = 0) => { const n = parseFloat(v); return isNaN(n) ? d : n; };
     const txt = v => v === null || v === undefined ? "" : String(v);
+    const getEnergyState = (role) => {
+        if (!ENERGY.deviceId) return undefined;
+        const dev = byId[ENERGY.deviceId];
+        const stateName = ENERGY.states[role];
+        return dev && dev.states ? dev.states[stateName] : undefined;
+    };
+    const getOptimiserState = (role) => {
+        if (!OPTIMISER.deviceId) return undefined;
+        const dev = byId[OPTIMISER.deviceId];
+        const stateName = OPTIMISER.states[role];
+        return dev && dev.states ? dev.states[stateName] : undefined;
+    };
+    const getVar = (role) => varByName[VARIABLES[role]];
 
-    // ── Hero KPIs ──
-    const pvNow = num(sigenS.pvPowerWatts);
-    const pvKwh = num(sigenS.pvDailyKwh);
-    const soc = num(sigenS.batterySoc);
-    const battKwh = +(soc * BATTERY_CAPACITY_KWH / 100).toFixed(1);
-    const battPower = num(sigenS.batteryPowerWatts);
-    const grid = num(sigenS.gridPowerWatts);
+    // ── Hero KPIs (read via role, not by hardcoded state names) ──
+    const pvNow = num(getEnergyState("solar_power_w"));
+    const pvKwh = num(getEnergyState("solar_kwh"));
+    const soc = num(getEnergyState("battery_soc"));
+    const battKwh = +(soc * ENERGY.battery_capacity_kwh / 100).toFixed(1);
+    const battPower = num(getEnergyState("battery_power_w"));
+    const grid = num(getEnergyState("grid_power_w"));
     const exporting = grid < 0;
-    const homeNow = num(sigenS.homePowerWatts);
-    const homeKwh = num(sigenS.homeDailyKwh);
-    const exportKwh = num(sigenS.gridDailyExportKwh);
-    const importKwh = num(sigenS.gridDailyImportKwh);
-    const gasToday = num(varByName.gas_today_kwh);
-    const gasMonth = num(varByName.gas_month_kwh);
-    const exportRev = num(varByName.export_month_revenue_gbp);
-    const exportMonthKwh = num(varByName.export_month_kwh);
+    const homeNow = num(getEnergyState("home_power_w"));
+    const homeKwh = num(getEnergyState("home_kwh"));
+    const exportKwh = num(getEnergyState("grid_export_kwh"));
+    const importKwh = num(getEnergyState("grid_import_kwh"));
+    const gasToday = num(getVar("gas_today_kwh"));
+    const gasMonth = num(getVar("gas_month_kwh"));
+    const exportRev = num(getVar("export_month_revenue"));
+    const exportMonthKwh = num(getVar("export_month_kwh"));
 
     document.getElementById("hero").innerHTML = `
         <div class="card"><div class="kpi"><div class="icon" style="color:var(--solar)">☀</div><div class="v" style="color:var(--solar)">${(pvNow/1000).toFixed(2)} kW</div><div class="l">Solar now</div><div class="delta">${pvKwh.toFixed(2)} kWh today</div></div></div>
@@ -546,24 +602,24 @@ function render({devices, variables}) {
             <circle cx="100" cy="100" r="80" class="soc-bg"/>
             <circle cx="100" cy="100" r="80" class="soc-fg" stroke-dasharray="${circumference}" stroke-dashoffset="${socOffset}"/>
         </svg>
-        <div class="soc-center"><div class="v">${soc.toFixed(1)}%</div><div class="l">${battKwh} / ${BATTERY_CAPACITY_KWH} kWh</div></div>
+        <div class="soc-center"><div class="v">${soc.toFixed(1)}%</div><div class="l">${battKwh} / ${ENERGY.battery_capacity_kwh} kWh</div></div>
     `;
 
     document.getElementById("batteryHealth").innerHTML = `
         <div style="margin-top:6px;">
             <div style="font-size:10px;color:var(--text-secondary);">State of health</div>
-            <div style="font-size:22px;font-weight:700;color:var(--good);">${num(sigenS.batterySoh).toFixed(0)}%</div>
+            <div style="font-size:22px;font-weight:700;color:var(--good);">${num(getEnergyState("battery_soh")).toFixed(0)}%</div>
         </div>
         <div style="margin-top:10px;font-size:11px;color:var(--text-secondary);line-height:1.7;">
-            Cell V: <b style="color:var(--text)">${txt(sigenS.batteryCellVoltage)}</b><br>
-            Temp: <b style="color:var(--text)">${txt(sigenS.batteryTempC)}°C</b><br>
-            Range: <b style="color:var(--text)">${txt(sigenS.batteryMinTempC)}–${txt(sigenS.batteryMaxTempC)}</b>
+            Cell V: <b style="color:var(--text)">${txt(getEnergyState("battery_cell_v"))}</b><br>
+            Temp: <b style="color:var(--text)">${txt(getEnergyState("battery_temp_c"))}°C</b><br>
+            Range: <b style="color:var(--text)">${txt(getEnergyState("battery_temp_min"))}–${txt(getEnergyState("battery_temp_max"))}</b>
         </div>
     `;
 
     // ── Today's bars + mix charts ──
-    const battChg = num(sigenS.batteryDailyChargeKwh);
-    const battDis = num(sigenS.batteryDailyDischargeKwh);
+    const battChg = num(getEnergyState("battery_charge_kwh"));
+    const battDis = num(getEnergyState("battery_discharge_kwh"));
     makeChart("todayBars", "bar", {
         labels: ["Solar generated", "Home used", "Battery charged", "Battery discharged", "Grid imported", "Grid exported", "Gas"],
         datasets: [{ data: [pvKwh, homeKwh, battChg, battDis, importKwh, exportKwh, gasToday],
@@ -591,10 +647,10 @@ function render({devices, variables}) {
     }, { indexAxis: "y", plugins: { legend: { labels: { font: { size: 10 } } } },
         scales: { x: { stacked: true, ticks: { callback: v => v + " kWh" } }, y: { stacked: true } }, responsive: true, maintainAspectRatio: false });
 
-    const yPv = num(varByName.sigen_today_pv_kwh);
-    const yExp = num(varByName.export_yesterday_kwh);
-    const yHome = num(varByName.sigen_today_home_kwh);
-    const yImp = num(varByName.sigen_today_import_kwh);
+    const yPv = num(getVar("yesterday_pv_kwh"));
+    const yExp = num(getVar("export_yesterday_kwh"));
+    const yHome = num(getVar("yesterday_home_kwh"));
+    const yImp = num(getVar("yesterday_import_kwh"));
     makeChart("todayVsYesterday", "bar", {
         labels: ["PV","Home","Import","Export"],
         datasets: [
@@ -604,26 +660,26 @@ function render({devices, variables}) {
     }, { plugins: { legend: { labels: { font: { size: 11 } } } }, scales: { y: { ticks: { callback: v => v + " kWh" } } }, responsive: true, maintainAspectRatio: false });
 
     // ── Tariffs ──
-    const trackToday = num(mgrS.rateToday);
-    const trackTomorrow = num(mgrS.rateTomorrow);
-    const exportRate = num(varByName.export_rate_p, 12.0);
-    const gasRate = num(varByName.gas_unit_rate_p, 6.09);
-    const legacyRate = num(varByName.elec_unit_rate_p);
+    const trackToday = num(getOptimiserState("rate_today"));
+    const trackTomorrow = num(getOptimiserState("rate_tomorrow"));
+    const exportRate = num(getVar("export_rate_p"), 0);
+    const gasRate = num(getVar("gas_unit_rate_p"), 0);
+    const legacyRate = num(getVar("elec_unit_rate_p"));
 
     document.getElementById("tariffRow").innerHTML = `
-        <div class="tariff-pill"><div class="lbl">Tracker today</div><div class="p" style="color:var(--warn)">${trackToday.toFixed(2)}<span style="font-size:11px">p</span></div></div>
-        <div class="tariff-pill"><div class="lbl">Tracker tomorrow</div><div class="p" style="color:var(--warn)">${trackTomorrow.toFixed(2)}<span style="font-size:11px">p</span></div></div>
-        <div class="tariff-pill"><div class="lbl">Outgoing export</div><div class="p" style="color:var(--good)">${exportRate.toFixed(2)}<span style="font-size:11px">p</span></div></div>
+        <div class="tariff-pill"><div class="lbl">Import today</div><div class="p" style="color:var(--warn)">${trackToday.toFixed(2)}<span style="font-size:11px">p</span></div></div>
+        <div class="tariff-pill"><div class="lbl">Import tomorrow</div><div class="p" style="color:var(--warn)">${trackTomorrow.toFixed(2)}<span style="font-size:11px">p</span></div></div>
+        <div class="tariff-pill"><div class="lbl">Export</div><div class="p" style="color:var(--good)">${exportRate.toFixed(2)}<span style="font-size:11px">p</span></div></div>
         <div class="tariff-pill"><div class="lbl">Gas unit</div><div class="p" style="color:var(--gas)">${gasRate.toFixed(2)}<span style="font-size:11px">p</span></div></div>
     `;
     makeChart("tariffRadar", "radar", {
-        labels: ["Tracker today","Tracker tomorrow","Outgoing export","Gas","Legacy silver"],
+        labels: ["Import today","Import tomorrow","Export","Gas","Legacy"],
         datasets: [{ label: "p/kWh", data: [trackToday, trackTomorrow, exportRate, gasRate, legacyRate], backgroundColor: "rgba(255,149,0,0.25)", borderColor: "#ff9500", pointBackgroundColor: "#ff9500", borderWidth: 2 }]
     }, { plugins: { legend: { labels: { font: { size: 10 } } } }, scales: { r: { suggestedMin: 0, suggestedMax: 25, pointLabels: { font: { size: 10 } }, ticks: { backdropColor: 'transparent', font: { size: 9 } } } }, responsive: true, maintainAspectRatio: false });
 
     // ── Forecast ──
-    const tomorrowSolar = num(mgrS.tomorrowSolarKwh);
-    const tomorrowNeed = num(mgrS.tomorrowNeedKwh);
+    const tomorrowSolar = num(getOptimiserState("tomorrow_solar"));
+    const tomorrowNeed = num(getOptimiserState("tomorrow_need"));
     const surplus = +(tomorrowSolar - tomorrowNeed).toFixed(1);
     document.getElementById("forecastRow").innerHTML = `
         <div class="forecast-card"><div class="v" style="color:var(--solar)">${tomorrowSolar.toFixed(1)}</div><div class="l">kWh forecast</div></div>
@@ -635,31 +691,59 @@ function render({devices, variables}) {
         datasets: [{ data: [tomorrowNeed, Math.max(0, surplus)], backgroundColor: ["#af52de","#34c759"], borderColor: cardBg, borderWidth: 3 }]
     }, { cutout: "65%", plugins: { legend: { position: "bottom", labels: { font: { size: 10 }, boxWidth: 10 } } }, responsive: true, maintainAspectRatio: false });
 
-    // ── EcoFlow ──
-    document.getElementById("ecoRow").innerHTML = ID.ECOFLOW.map(([id, name]) => {
-        const ecoDev = byId[id];
-        const ecoSoc = ecoDev && ecoDev.states ? num(ecoDev.states.batteryLevel || ecoDev.states.soc || ecoDev.batteryLevel) : 0;
-        const dash = 157;
-        const offset = dash * (1 - ecoSoc/100);
-        return `<div class="eco">
-            <div class="nm">${name}</div>
-            <div class="ring">
-                <svg viewBox="0 0 60 60">
-                    <circle cx="30" cy="30" r="25" fill="none" stroke="var(--off-color)" stroke-width="6"/>
-                    <circle cx="30" cy="30" r="25" fill="none" stroke="var(--battery)" stroke-width="6" stroke-dasharray="${dash}" stroke-dashoffset="${offset}" stroke-linecap="round"/>
-                </svg>
-                <div class="pct">${ecoSoc.toFixed(0)}%</div>
-            </div>
-            <div class="l">SOC</div>
-        </div>`;
-    }).join("");
+    // ── Backup batteries (auto-discover or manual list) ──
+    // Auto-discover: any device with a numeric batteryLevel/soc state > 0 that
+    // isn't already the main energy device (which has its own SOC card above).
+    let batteryDevices;
+    if (BACKUP_BATTERIES.devices && BACKUP_BATTERIES.devices.length) {
+        batteryDevices = BACKUP_BATTERIES.devices.map(([id, name]) => ({device: byId[id], name}));
+    } else if (BACKUP_BATTERIES.auto_discover) {
+        batteryDevices = devices
+            .filter(d => d.id !== ENERGY.deviceId)
+            .map(d => {
+                const lvl = num(d.batteryLevel ?? (d.states && (d.states.batteryLevel || d.states.soc || d.states.batterySoc)));
+                return lvl > 0 ? {device: d, name: d.name, level: lvl} : null;
+            })
+            .filter(Boolean);
+    } else {
+        batteryDevices = [];
+    }
+    document.getElementById("ecoRow").innerHTML = batteryDevices.length === 0
+        ? `<div style="text-align:center;padding:30px;color:var(--text-secondary);">No backup batteries discovered. Set <code>BACKUP_BATTERIES.devices</code> or check that devices report a <code>batteryLevel</code> state.</div>`
+        : batteryDevices.map(({device, name, level}) => {
+            const soc = level !== undefined ? level : num(device && (device.batteryLevel ?? (device.states && (device.states.batteryLevel || device.states.soc))));
+            const dash = 157;
+            const offset = dash * (1 - soc/100);
+            return `<div class="eco">
+                <div class="nm">${escapeHtml(name)}</div>
+                <div class="ring">
+                    <svg viewBox="0 0 60 60">
+                        <circle cx="30" cy="30" r="25" fill="none" stroke="var(--off-color)" stroke-width="6"/>
+                        <circle cx="30" cy="30" r="25" fill="none" stroke="var(--battery)" stroke-width="6" stroke-dasharray="${dash}" stroke-dashoffset="${offset}" stroke-linecap="round"/>
+                    </svg>
+                    <div class="pct">${soc.toFixed(0)}%</div>
+                </div>
+                <div class="l">SOC</div>
+            </div>`;
+        }).join("");
 
-    // ── Heating zones ──
-    const zoneData = ID.ZONES.map(([id, name]) => {
-        const z = byId[id];
-        const temp = z ? num(z.temperatureInput1 || (z.states && z.states.temperatureInput1)) : 0;
-        const sp = z ? num(z.setpointHeat) : 0;
-        const valve = z && z.states ? num(z.states["valve-position"]) : 0;
+    // ── Heating zones (auto-discover any thermostat or manual list) ──
+    // Auto-discover: any device whose class contains "Thermostat" — works for
+    // Insteon, Z-Wave, Nest, Ecobee, EvoHome, RAMSES, generic Indigo thermostats.
+    let zoneDevices;
+    if (HEATING.devices && HEATING.devices.length) {
+        zoneDevices = HEATING.devices.map(([id, name]) => ({id, name, dev: byId[id]}));
+    } else if (HEATING.auto_discover) {
+        zoneDevices = devices
+            .filter(d => /Thermostat/.test(d.class || "") && d.enabled)
+            .map(d => ({id: d.id, name: d.name, dev: d}));
+    } else {
+        zoneDevices = [];
+    }
+    const zoneData = zoneDevices.map(({id, name, dev}) => {
+        const temp = dev ? num(dev.temperatureInput1 || (dev.states && dev.states.temperatureInput1)) : 0;
+        const sp = dev ? num(dev.setpointHeat) : 0;
+        const valve = dev && dev.states ? num(dev.states["valve-position"]) : 0;
         return { id, name, temp, sp, valve, calling: valve > 0 };
     });
     const calling = zoneData.filter(z => z.calling);
@@ -691,7 +775,7 @@ function render({devices, variables}) {
     `).join("");
 
     // ── Gas ──
-    const gasYesterday = num(varByName.gas_yesterday_kwh);
+    const gasYesterday = num(getVar("gas_yesterday_kwh"));
     makeChart("gasCompare", "bar", {
         labels: ["Yesterday","Today"],
         datasets: [{ data: [gasYesterday, gasToday], backgroundColor: "#ff9500", borderRadius: 6 }]
@@ -771,19 +855,28 @@ function render({devices, variables}) {
         </div>
     `;
 
-    // ── Optimiser ──
-    document.getElementById("optStatus").innerHTML = `
-        <div class="opt-status">
-            <div class="opt-action"><span class="badge">${txt(mgrS.managerStatus) || 'Running'}</span>${escapeHtml(txt(mgrS.currentAction))}</div>
-            <div class="opt-reason">${escapeHtml(txt(mgrS.currentReason))}</div>
-        </div>
-        <div style="margin-top:12px;font-size:11px;color:var(--text-secondary);line-height:1.6;">
-            Plan: <b style="color:var(--text)">${escapeHtml(txt(varByName.battery_optimiser_status))}</b><br>
-            Tariff: <b style="color:var(--text)">${txt(mgrS.tariffActive)}</b> ·
-            Dawn viable: <b style="color:${mgrS.dawnViable === 'True' ? 'var(--good)' : 'var(--bad)'}">${txt(mgrS.dawnViable)}</b> ·
-            Last: ${txt(mgrS.lastUpdate)}
-        </div>
-    `;
+    // ── Optimiser (only renders if OPTIMISER.deviceId is set) ──
+    if (OPTIMISER.deviceId) {
+        const dawnViable = getOptimiserState("dawn_viable");
+        document.getElementById("optStatus").innerHTML = `
+            <div class="opt-status">
+                <div class="opt-action"><span class="badge">${txt(getOptimiserState("manager_status")) || 'Running'}</span>${escapeHtml(txt(getOptimiserState("current_action")))}</div>
+                <div class="opt-reason">${escapeHtml(txt(getOptimiserState("current_reason")))}</div>
+            </div>
+            <div style="margin-top:12px;font-size:11px;color:var(--text-secondary);line-height:1.6;">
+                Plan: <b style="color:var(--text)">${escapeHtml(txt(getVar("optimiser_plan")))}</b><br>
+                Tariff: <b style="color:var(--text)">${txt(getOptimiserState("tariff_active"))}</b> ·
+                Dawn viable: <b style="color:${dawnViable === 'True' ? 'var(--good)' : 'var(--bad)'}">${txt(dawnViable)}</b> ·
+                Last: ${txt(getOptimiserState("last_update"))}
+            </div>
+        `;
+    } else {
+        document.getElementById("optStatus").innerHTML = `
+            <div style="text-align:center;padding:24px;color:var(--text-secondary);font-size:13px;">
+                No optimiser device configured. Set <code>OPTIMISER.deviceId</code> if you have a battery/energy manager device that publishes a current action.
+            </div>
+        `;
+    }
 
     // ── System health ──
     document.getElementById("sysHealth").innerHTML = `
