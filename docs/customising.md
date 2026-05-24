@@ -5,9 +5,7 @@ Indigo device IDs and everything else follows.
 
 ## Finding device IDs
 
-In the Indigo client:
-- **Right-click a device → Copy Internal ID** — pastes the numeric ID
-- Or in the **Scripting Shell**: `print(indigo.devices["Living Room Lamp"].id)`
+In the Indigo client, right-click a device → **Copy ID** — pastes the numeric ID ready to drop into the config block.
 
 ## The config block
 
