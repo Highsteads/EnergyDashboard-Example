@@ -1,0 +1,27 @@
+# Secrets / per-install
+IndigoSecrets.py
+secrets.py
+**/IndigoSecrets.py
+config.local.js
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+
+# macOS
+.DS_Store
+._.DS_Store
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*~
+
+# Local CLAUDE notes (per-user)
+CLAUDE.md

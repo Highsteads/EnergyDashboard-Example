@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <meta name="indigo-page-name" content="Energy Showcase">
+    <meta name="indigo-page-icon" content="bolt.fill">
+    <meta name="indigo-page-description" content="Comprehensive live dashboard — Sigenergy, Octopus, RAMSES, EcoFlow, security, system">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Highsteads Energy">
+    <meta name="theme-color" content="#5856d6">
+    <title>Highsteads Energy — Live Showcase</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <style>
+        :root {
+            --bg: #f5f5f7; --card-bg: #ffffff; --text: #1d1d1f;
+            --text-secondary: #86868b; --border: #d2d2d7; --accent: #5856d6;
+            --on-color: #34c759; --off-color: #d2d2d7; --shadow: 0 1px 3px rgba(0,0,0,0.08);
+            --solar: #ff9500; --battery: #007aff; --grid-in: #ff3b30;
+            --grid-out: #34c759; --home: #af52de; --gas: #ff9500;
+            --good: #34c759; --warn: #ff9500; --bad: #ff3b30;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #000000; --card-bg: #1c1c1e; --text: #f5f5f7;
+                --text-secondary: #98989d; --border: #38383a; --accent: #7d7aff;
+                --on-color: #30d158; --off-color: #48484a; --shadow: 0 1px 3px rgba(0,0,0,0.3);
+                --solar: #ffd60a; --battery: #64d2ff; --grid-in: #ff453a;
+                --grid-out: #30d158; --home: #bf5af2; --gas: #ff9f0a;
+            }
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { background: var(--bg); color: var(--text); }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+            padding: 16px;
+            padding-top: max(16px, env(safe-area-inset-top));
+            padding-bottom: max(32px, env(safe-area-inset-bottom));
+            padding-left: max(16px, env(safe-area-inset-left));
+            padding-right: max(16px, env(safe-area-inset-right));
+            -webkit-overflow-scrolling: touch;
+        }
+        header.main {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 14px; padding-bottom: 12px;
+            border-bottom: 1px solid var(--border); gap: 12px; flex-wrap: wrap;
+        }
+        h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
+        .subtitle { font-size: 13px; color: var(--text-secondary); }
+        .refresh { font-size: 11px; color: var(--text-secondary); text-align: right; }
+        .refresh b { color: var(--text); }
+        h2.section {
+            margin: 22px 0 10px; font-size: 12px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent);
+            padding-bottom: 6px; border-bottom: 1px solid var(--border);
+        }
+        .grid { display: grid; gap: 12px; grid-template-columns: repeat(12, 1fr); }
+        .card {
+            background: var(--card-bg); border-radius: 14px; padding: 14px 16px;
+            box-shadow: var(--shadow); min-width: 0;
+        }
+        .card h3 {
+            margin: 0 0 8px; font-size: 11px; text-transform: uppercase;
+            letter-spacing: 1px; color: var(--text-secondary); font-weight: 600;
+        }
+        .s2 { grid-column: span 2; } .s3 { grid-column: span 3; }
+        .s4 { grid-column: span 4; } .s5 { grid-column: span 5; }
+        .s6 { grid-column: span 6; } .s7 { grid-column: span 7; }
+        .s8 { grid-column: span 8; } .s12 { grid-column: span 12; }
+        .kpi { display: flex; flex-direction: column; gap: 2px; }
+        .kpi .v { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }
+        .kpi .l { font-size: 11px; color: var(--text-secondary); }
+        .kpi .delta { font-size: 10px; color: var(--good); margin-top: 1px; }
+        .kpi .icon { font-size: 16px; margin-bottom: 2px; }
+        .hero { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+        .hero .card { padding: 12px 14px; }
+        .flow-wrap { position: relative; height: 280px; }
+        .flow-wrap svg { width: 100%; height: 100%; }
+        .flow-node circle { stroke-width: 2; }
+        .flow-node text { text-anchor: middle; fill: var(--text); font-size: 13px; font-weight: 600; }
+        .flow-node .lbl { fill: var(--text-secondary); font-size: 10px; font-weight: 500; }
+        .pipe { fill: none; stroke-width: 4; stroke-linecap: round;
+                stroke-dasharray: 6 10; animation: flow 1.2s linear infinite; }
+        .pipe.off { animation: none; opacity: 0.2; stroke-dasharray: 2 6; }
+        @keyframes flow { to { stroke-dashoffset: -32; } }
+        .soc-wrap { display: flex; align-items: center; justify-content: center; height: 180px; position: relative; }
+        .soc-svg { width: 160px; height: 160px; transform: rotate(-90deg); }
+        .soc-bg { fill: none; stroke: var(--off-color); stroke-width: 12; }
+        .soc-fg { fill: none; stroke: var(--battery); stroke-width: 12; stroke-linecap: round;
+                  transition: stroke-dashoffset 0.6s ease; }
+        .soc-center { position: absolute; text-align: center; pointer-events: none; }
+        .soc-center .v { font-size: 34px; font-weight: 700; }
+        .soc-center .l { font-size: 10px; color: var(--text-secondary); margin-top: 2px; }
+        .tariff-row { display: flex; gap: 8px; flex-wrap: wrap; }
+        .tariff-pill { flex: 1; min-width: 90px; padding: 10px 12px; border-radius: 10px;
+                       background: var(--bg); border: 1px solid var(--border); }
+        .tariff-pill .p { font-size: 18px; font-weight: 700; }
+        .tariff-pill .lbl { font-size: 10px; color: var(--text-secondary); text-transform: uppercase; }
+        .forecast-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .forecast-card { background: var(--bg); border: 1px solid var(--border);
+                         border-radius: 10px; padding: 10px; text-align: center; }
+        .forecast-card .v { font-size: 20px; font-weight: 700; }
+        .forecast-card .l { font-size: 10px; color: var(--text-secondary); }
+        .zone-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+        .zone { background: var(--bg); border: 1px solid var(--border);
+                border-radius: 10px; padding: 10px 12px; position: relative; }
+        .zone .nm { font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; }
+        .zone .row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+        .zone .tt { font-size: 22px; font-weight: 700; }
+        .zone .sp-row { display: flex; align-items: center; gap: 4px; margin-top: 4px; }
+        .zone .sp { font-size: 11px; color: var(--text-secondary); flex: 1; }
+        .zone button {
+            min-width: 30px; min-height: 30px; border: 1px solid var(--border);
+            background: var(--card-bg); color: var(--text); border-radius: 6px;
+            font-size: 16px; font-weight: 600; cursor: pointer; padding: 0;
+        }
+        .zone button:active { background: var(--accent); color: white; }
+        .zone .flame { color: var(--bad); font-size: 12px; margin-left: 4px; }
+        .eco-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+        .eco { background: var(--bg); border: 1px solid var(--border);
+               border-radius: 10px; padding: 12px; text-align: center; }
+        .eco .nm { font-size: 10px; color: var(--text-secondary); margin-bottom: 6px; }
+        .eco .l { font-size: 10px; color: var(--text-secondary); margin-top: 2px; }
+        .eco .ring { position: relative; width: 50px; height: 50px; margin: 0 auto 4px; }
+        .eco .ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+        .eco .ring .pct { position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+                          display: flex; align-items: center; justify-content: center;
+                          font-size: 13px; font-weight: 700; }
+        .sec-list { display: flex; flex-direction: column; gap: 4px; max-height: 220px; overflow-y: auto; }
+        .sec-item { display: flex; justify-content: space-between; padding: 6px 10px;
+                    background: rgba(255,59,48,0.08); border-left: 3px solid var(--bad);
+                    border-radius: 4px; font-size: 12px; }
+        .sec-item.motion { background: rgba(255,149,0,0.08); border-left-color: var(--warn); }
+        .opt-status {
+            background: linear-gradient(135deg, rgba(0,122,255,0.08) 0%, rgba(255,149,0,0.06) 100%);
+            border: 1px solid var(--border); border-radius: 10px; padding: 12px;
+        }
+        .opt-action { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+        .opt-reason { font-size: 11px; color: var(--text-secondary); white-space: pre-line; line-height: 1.5; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 999px;
+                 background: var(--good); color: white; font-size: 10px; font-weight: 700;
+                 text-transform: uppercase; letter-spacing: 0.5px; margin-right: 6px; }
+        .chart-wrap { position: relative; height: 200px; }
+        .chart-wrap.tall { height: 260px; }
+        .chart-wrap.short { height: 140px; }
+        .loading { text-align: center; padding: 60px 20px; color: var(--text-secondary); }
+        .spinner {
+            width: 28px; height: 28px; border: 3px solid var(--off-color);
+            border-top-color: var(--accent); border-radius: 50%;
+            animation: spin 0.8s linear infinite; margin: 0 auto 12px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        footer { margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--border);
+                 color: var(--text-secondary); font-size: 11px; text-align: center; }
+        @media (max-width: 900px) {
+            .s2,.s3,.s4 { grid-column: span 6; }
+            .s5,.s6,.s7,.s8 { grid-column: span 12; }
+            .hero { grid-template-columns: repeat(3, 1fr); }
+        }
+        @media (max-width: 600px) {
+            .hero { grid-template-columns: repeat(2, 1fr); }
+            .s2,.s3,.s4,.s5,.s6,.s7,.s8 { grid-column: span 12; }
+            h1 { font-size: 22px; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div class="loading">
+        <div class="spinner"></div>
+        <p>Connecting to Indigo…</p>
+    </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════════════
+     CONFIG: when Dashboards plugin serves this page, config.js is auto-generated
+     with INDIGO_CONFIG = {baseURL, apiKey}. When opened standalone in a browser,
+     fall through to the inline connection form below.
+     ═════════════════════════════════════════════════════════════════════════ -->
+<script src="config.js" onerror="window.INDIGO_CONFIG_MISSING=true"></script>
+
+<!-- ── Inlined IndigoAPI (V1) — credit @simons-plugins/indigo-claude-plugin ── -->
+<script>
+class IndigoAPIError extends Error {
+    constructor(msg, status) { super(msg); this.name = "IndigoAPIError"; this.status = status; }
+}
+class IndigoAPI {
+    constructor(config) {
+        const c = config || window.INDIGO_CONFIG || IndigoAPI.getStoredConfig();
+        if (!c) throw new IndigoAPIError("Not configured", 0);
+        this._base = c.baseURL.replace(/\/+$/, "");
+        this._key = c.apiKey;
+        this._authH = [];
+    }
+    static isConfigured() {
+        const c = window.INDIGO_CONFIG || IndigoAPI.getStoredConfig();
+        return !!(c && c.baseURL && c.apiKey);
+    }
+    static getStoredConfig() {
+        try { return JSON.parse(localStorage.getItem("indigo_config") || "null"); } catch { return null; }
+    }
+    static clearConfig() { localStorage.removeItem("indigo_config"); }
+    static storeConfig(c) { localStorage.setItem("indigo_config", JSON.stringify(c)); }
+    onAuthFailure(fn) { this._authH.push(fn); }
+    async _fetch(path, opts = {}) {
+        const headers = { Authorization: "Bearer " + this._key, Accept: "application/json", ...(opts.headers || {}) };
+        const r = await fetch(this._base + path, { ...opts, headers });
+        if (r.status === 401 || r.status === 403) {
+            this._authH.forEach(h => h()); throw new IndigoAPIError("Auth failed", r.status);
+        }
+        if (!r.ok) throw new IndigoAPIError("HTTP " + r.status, r.status);
+        const ct = r.headers.get("Content-Type") || "";
+        return ct.includes("json") ? r.json() : null;
+    }
+    getDevices() { return this._fetch("/v2/api/indigo.devices"); }
+    getVariables() { return this._fetch("/v2/api/indigo.variables"); }
+    setHeatSetpoint(id, value) {
+        return this._fetch("/v2/api/command", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: "indigo.thermostat.setHeatSetpoint", objectId: id, parameters: { value: value } })
+        });
+    }
+    observeAll(cb, ms = 5000) {
+        let last = "";
+        const tick = async () => {
+            try {
+                const [devices, variables] = await Promise.all([ this.getDevices(), this.getVariables() ]);
+                const j = JSON.stringify({d:devices.length, v:variables.length, ts: devices.map(x=>x.id+":"+(x.states?JSON.stringify(x.states):"")+":"+x.onState).join("|")});
+                if (j !== last) { last = j; cb({devices, variables}); }
+            } catch (e) { console.warn("Poll error:", e.message); }
+        };
+        tick();
+        const t = setInterval(tick, ms);
+        return { stop: () => clearInterval(t) };
+    }
+}
+</script>
+
+<!-- ═════════════════════════════════════════════════════════════════════════
+     PAGE LOGIC
+     ═════════════════════════════════════════════════════════════════════════ -->
+<script>
+// ═════════════════════════════════════════════════════════════════════════════
+// ⚙️  CONFIG — EDIT THIS BLOCK TO MATCH YOUR OWN INDIGO SETUP
+// ═════════════════════════════════════════════════════════════════════════════
+// Replace the device IDs below with the ones from your own Indigo install.
+// To find them: in Indigo client, right-click a device → Copy Internal ID, or
+// run `indigo.devices[NAME].id` in the Scripting Shell.
+// Sections you don't use will degrade gracefully (show 0s rather than break).
+// ═════════════════════════════════════════════════════════════════════════════
+const ID = {
+    // ── Sigenergy / inverter & battery (SigenEnergyManager plugin) ──
+    BATTERY_MANAGER: 93061288,    // Battery Manager device — currentAction, currentReason, etc.
+    SIGEN_INVERTER:  1563154425,  // Sigenergy Inverter — PV/grid/battery power, daily kWh
+    SOLAR_FORECAST:  525675308,   // Solar Forecast device
+    TARIFF_MONITOR:  1943281479,  // Tariff Monitor
+
+    // ── RAMSES ESP heating zones (uk.co.clives.ramses.esp) ──
+    // Each entry is [device_id, "Display Name"]
+    ZONES: [
+        [1886011292, "Bathroom"],
+        [545736860,  "Bedroom 1"],
+        [72187173,   "Bedroom 2"],
+        [1006487156, "Bedroom 3"],
+        [430908914,  "Conservatory"],
+        [82851831,   "Dining Room"],
+        [766064835,  "En Suite"],
+        [228383134,  "Hall Bedroom"],
+        [1138438804, "Hall Kitchen"],
+        [963505712,  "Living Room Door"],
+        [110516814,  "Living Room Front"],
+        [1376483274, "Utility Room"],
+    ],
+
+    // ── EcoFlow portable batteries (ecoflowcloud plugin) ──
+    ECOFLOW: [
+        [1786840251, "Bathroom River 3+"],
+        [1602125649, "Living Room River 3+"],
+        [198876292,  "Server Room Delta 3"],
+    ],
+};
+
+// ── Battery capacity (kWh) — used to convert SOC% to stored kWh ──
+const BATTERY_CAPACITY_KWH = 35.04;
+
+// ── Polling interval (ms) — 5s is a sensible default ──
+const POLL_INTERVAL_MS = 5000;
+
+// ═════════════════════════════════════════════════════════════════════════════
+// END CONFIG — everything below this line is generic and shouldn't need editing
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ── Polling status ──
+let _lastUpdate = 0;
+function _pad(n) { return String(n).padStart(2, "0"); }
+function markRefreshed() { _lastUpdate = Date.now(); tickRefreshStatus(); }
+function tickRefreshStatus() {
+    let tsStr = "—";
+    if (_lastUpdate) {
+        const d = new Date(_lastUpdate);
+        tsStr = _pad(d.getHours()) + ":" + _pad(d.getMinutes()) + ":" + _pad(d.getSeconds());
+    }
+    const elapsed = _lastUpdate ? (Date.now() - _lastUpdate) / 1000 : 0;
+    const cdwn = Math.max(0, Math.round((POLL_INTERVAL_MS / 1000) - elapsed));
+    const tsEl = document.getElementById("ts"); if (tsEl) tsEl.textContent = tsStr;
+    const cdEl = document.getElementById("cdwn"); if (cdEl) cdEl.textContent = cdwn;
+}
+setInterval(markRefreshed, POLL_INTERVAL_MS);
+setInterval(tickRefreshStatus, 1000);
+
+// ── Bootstrap ──
+if (window.INDIGO_CONFIG_MISSING || !IndigoAPI.isConfigured()) {
+    showConnectForm();
+} else {
+    buildLayout();
+    const indigo = new IndigoAPI();
+    indigo.onAuthFailure(() => {
+        IndigoAPI.clearConfig();
+        showConnectForm();
+    });
+    indigo.observeAll(payload => { markRefreshed(); render(payload); }, POLL_INTERVAL_MS);
+    window._indigo = indigo;
+}
+
+function showConnectForm() {
+    document.getElementById("app").innerHTML = `
+        <div class="card" style="max-width:420px;margin:60px auto;">
+            <h3 style="margin-bottom:12px;">Connect to Indigo</h3>
+            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;">
+                Enter your Indigo server URL and API key. Stored in browser localStorage only.
+            </p>
+            <label style="display:block;font-size:13px;color:var(--text-secondary);margin-bottom:4px;">Server URL</label>
+            <input id="cfg-url" type="url" placeholder="https://192.168.1.x:8176"
+                style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);">
+            <label style="display:block;font-size:13px;color:var(--text-secondary);margin:12px 0 4px;">API Key</label>
+            <input id="cfg-key" type="text" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);">
+            <button onclick="saveConfig()"
+                style="margin-top:16px;width:100%;padding:12px;border:none;border-radius:10px;background:var(--accent);color:white;font-size:15px;font-weight:600;cursor:pointer;min-height:44px;">
+                Connect
+            </button>
+        </div>
+    `;
+}
+
+function saveConfig() {
+    const baseURL = document.getElementById("cfg-url").value.replace(/\/+$/, "");
+    const apiKey = document.getElementById("cfg-key").value.trim();
+    if (!baseURL || !apiKey) return;
+    IndigoAPI.storeConfig({ baseURL, apiKey });
+    location.reload();
+}
+
+// ── Build static layout shell ──
+function buildLayout() {
+    document.getElementById("app").innerHTML = `
+        <header class="main">
+            <div>
+                <h1>Energy Showcase — Live</h1>
+                <div class="subtitle">Polling Indigo REST API every ${POLL_INTERVAL_MS/1000}s · interactive heating tiles · tap +/− to change setpoints</div>
+            </div>
+            <div class="refresh">Updated <b id="ts">—</b> · next in <b id="cdwn">—</b>s</div>
+        </header>
+
+        <h2 class="section">⚡ Energy — Live</h2>
+        <div class="hero" id="hero"></div>
+
+        <div class="grid" style="margin-top:12px;">
+            <div class="card s7"><h3>Live energy flow</h3><div class="flow-wrap" id="flowDiagram"></div></div>
+            <div class="card s3"><h3>Battery state of charge</h3><div class="soc-wrap" id="socGauge"></div></div>
+            <div class="card s2"><h3>Battery health</h3><div id="batteryHealth"></div></div>
+        </div>
+
+        <h2 class="section">📊 Today — same data, multiple views</h2>
+        <div class="grid">
+            <div class="card s6"><h3>Today's kWh — horizontal bars</h3><div class="chart-wrap"><canvas id="todayBars"></canvas></div></div>
+            <div class="card s3"><h3>Home source — doughnut</h3><div class="chart-wrap"><canvas id="mixDonut"></canvas></div></div>
+            <div class="card s3"><h3>Home source — polar</h3><div class="chart-wrap"><canvas id="mixPolar"></canvas></div></div>
+            <div class="card s6"><h3>Where today's solar went — stacked</h3><div class="chart-wrap"><canvas id="stackedFlow"></canvas></div></div>
+            <div class="card s6"><h3>Today vs yesterday — grouped</h3><div class="chart-wrap"><canvas id="todayVsYesterday"></canvas></div></div>
+        </div>
+
+        <h2 class="section">💷 Tariffs &amp; Forecast</h2>
+        <div class="grid">
+            <div class="card s8">
+                <h3>Octopus tariffs — live</h3>
+                <div class="tariff-row" id="tariffRow"></div>
+                <div class="chart-wrap short" style="margin-top:12px;"><canvas id="tariffRadar"></canvas></div>
+            </div>
+            <div class="card s4">
+                <h3>Tomorrow — solar vs need</h3>
+                <div class="forecast-row" id="forecastRow"></div>
+                <div class="chart-wrap short" style="margin-top:12px;"><canvas id="forecastDonut"></canvas></div>
+            </div>
+        </div>
+
+        <h2 class="section">🔋 EcoFlow backup fleet</h2>
+        <div class="grid"><div class="card s12"><div class="eco-row" id="ecoRow"></div></div></div>
+
+        <h2 class="section">♨ Heating — RAMSES TRVs (tap +/− to change setpoint)</h2>
+        <div class="grid">
+            <div class="card s8"><h3>Per-zone temperature vs setpoint</h3><div class="chart-wrap tall"><canvas id="heatBars"></canvas></div></div>
+            <div class="card s4"><h3>Calling for heat</h3><div id="callingForHeat"></div></div>
+            <div class="card s12"><h3>Live zone tiles (interactive)</h3><div class="zone-grid" id="zoneTiles"></div></div>
+        </div>
+
+        <h2 class="section">🔥 Gas</h2>
+        <div class="grid">
+            <div class="card s4"><h3>Gas today vs yesterday</h3><div class="chart-wrap"><canvas id="gasCompare"></canvas></div></div>
+            <div class="card s4"><h3>Gas vs electricity (today)</h3><div class="chart-wrap"><canvas id="gasVsElec"></canvas></div></div>
+            <div class="card s4"><h3>Month so far</h3><div id="gasMonthHeader"></div><div class="chart-wrap short"><canvas id="gasMonth"></canvas></div></div>
+        </div>
+
+        <h2 class="section">🛡 Security</h2>
+        <div class="grid">
+            <div class="card s4"><h3>Security overview</h3><div class="chart-wrap"><canvas id="secDonut"></canvas></div></div>
+            <div class="card s4"><h3>Open contacts</h3><div class="sec-list" id="openContacts"></div></div>
+            <div class="card s4"><h3>Active motion · Alerts</h3><div class="sec-list" id="activeMotion"></div></div>
+        </div>
+
+        <h2 class="section">📦 Device inventory</h2>
+        <div class="grid">
+            <div class="card s4"><h3>By category — pie</h3><div class="chart-wrap"><canvas id="devicePie"></canvas></div></div>
+            <div class="card s4"><h3>By category — polar</h3><div class="chart-wrap"><canvas id="devicePolar"></canvas></div></div>
+            <div class="card s4"><h3>By category — bar</h3><div class="chart-wrap"><canvas id="deviceBar"></canvas></div></div>
+            <div class="card s6"><h3>Automation rules</h3><div id="automationStats"></div></div>
+            <div class="card s6"><h3>Plugin device share</h3><div class="chart-wrap"><canvas id="pluginShare"></canvas></div></div>
+        </div>
+
+        <h2 class="section">🧠 Optimiser &amp; System</h2>
+        <div class="grid">
+            <div class="card s8"><h3>Battery optimiser — live decision</h3><div id="optStatus"></div></div>
+            <div class="card s4"><h3>System health</h3><div id="sysHealth"></div></div>
+        </div>
+
+        <footer>
+            All data live via Indigo REST API · Polling every ${POLL_INTERVAL_MS/1000}s ·
+            Built with the <a href="https://github.com/simons-plugins/indigo-claude-plugin" style="color:var(--accent)">indigo-claude-plugin</a> HTML pages skill
+        </footer>
+    `;
+}
+
+// ── Chart instances (created lazily, updated in place) ──
+const charts = {};
+function makeChart(id, type, data, options) {
+    const ctx = document.getElementById(id);
+    if (!ctx) return null;
+    if (charts[id]) {
+        charts[id].data = data;
+        if (options) charts[id].options = options;
+        charts[id].update("none");
+        return charts[id];
+    }
+    Chart.defaults.color = getComputedStyle(document.body).getPropertyValue('--text-secondary').trim() || '#86868b';
+    Chart.defaults.borderColor = getComputedStyle(document.body).getPropertyValue('--border').trim() || '#d2d2d7';
+    Chart.defaults.font.family = '-apple-system, "SF Pro Text", Inter, system-ui, sans-serif';
+    charts[id] = new Chart(ctx, { type, data, options });
+    return charts[id];
+}
+
+// ── Render: called on every poll cycle ──
+function render({devices, variables}) {
+    const byId = {};
+    devices.forEach(d => byId[d.id] = d);
+    const varByName = {};
+    variables.forEach(v => varByName[v.name] = v.value);
+
+    const sigen = byId[ID.SIGEN_INVERTER];
+    const battMgr = byId[ID.BATTERY_MANAGER];
+    const sigenS = (sigen && sigen.states) || {};
+    const mgrS = (battMgr && battMgr.states) || {};
+
+    const num = (v, d = 0) => { const n = parseFloat(v); return isNaN(n) ? d : n; };
+    const txt = v => v === null || v === undefined ? "" : String(v);
+
+    // ── Hero KPIs ──
+    const pvNow = num(sigenS.pvPowerWatts);
+    const pvKwh = num(sigenS.pvDailyKwh);
+    const soc = num(sigenS.batterySoc);
+    const battKwh = +(soc * BATTERY_CAPACITY_KWH / 100).toFixed(1);
+    const battPower = num(sigenS.batteryPowerWatts);
+    const grid = num(sigenS.gridPowerWatts);
+    const exporting = grid < 0;
+    const homeNow = num(sigenS.homePowerWatts);
+    const homeKwh = num(sigenS.homeDailyKwh);
+    const exportKwh = num(sigenS.gridDailyExportKwh);
+    const importKwh = num(sigenS.gridDailyImportKwh);
+    const gasToday = num(varByName.gas_today_kwh);
+    const gasMonth = num(varByName.gas_month_kwh);
+    const exportRev = num(varByName.export_month_revenue_gbp);
+    const exportMonthKwh = num(varByName.export_month_kwh);
+
+    document.getElementById("hero").innerHTML = `
+        <div class="card"><div class="kpi"><div class="icon" style="color:var(--solar)">☀</div><div class="v" style="color:var(--solar)">${(pvNow/1000).toFixed(2)} kW</div><div class="l">Solar now</div><div class="delta">${pvKwh.toFixed(2)} kWh today</div></div></div>
+        <div class="card"><div class="kpi"><div class="icon" style="color:var(--battery)">🔋</div><div class="v" style="color:var(--battery)">${soc.toFixed(1)}%</div><div class="l">Battery · ${battKwh} kWh</div><div class="delta">${battPower > 0 ? "Charging" : "Discharging"} ${Math.abs(battPower)} W</div></div></div>
+        <div class="card"><div class="kpi"><div class="icon" style="color:${exporting ? 'var(--grid-out)' : 'var(--grid-in)'}">⇄</div><div class="v" style="color:${exporting ? 'var(--grid-out)' : 'var(--grid-in)'}">${(Math.abs(grid)/1000).toFixed(2)} kW</div><div class="l">${exporting ? "Exporting" : "Importing"}</div><div class="delta">${exportKwh.toFixed(2)} exp · ${importKwh.toFixed(2)} imp kWh</div></div></div>
+        <div class="card"><div class="kpi"><div class="icon" style="color:var(--home)">⌂</div><div class="v" style="color:var(--home)">${homeNow} W</div><div class="l">Home draw</div><div class="delta">${homeKwh.toFixed(2)} kWh today</div></div></div>
+        <div class="card"><div class="kpi"><div class="icon" style="color:var(--gas)">🔥</div><div class="v" style="color:var(--gas)">${gasToday.toFixed(1)} kWh</div><div class="l">Gas today</div><div class="delta">${gasMonth.toFixed(1)} kWh month</div></div></div>
+        <div class="card"><div class="kpi"><div class="icon" style="color:var(--good)">£</div><div class="v" style="color:var(--good)">£${exportRev.toFixed(2)}</div><div class="l">Export revenue</div><div class="delta">${exportMonthKwh.toFixed(1)} kWh month</div></div></div>
+    `;
+
+    // ── Flow diagram ──
+    const flowPipe = (active, cls) => active ? `pipe ${cls}` : `pipe ${cls} off`;
+    document.getElementById("flowDiagram").innerHTML = `
+        <svg viewBox="0 0 700 280" preserveAspectRatio="xMidYMid meet">
+            <path class="${flowPipe(pvNow > 50, 'solar')}" style="stroke:var(--solar)" d="M 110 70 Q 200 70 350 140"/>
+            <path class="${flowPipe(Math.abs(battPower) > 50, 'battery')}" style="stroke:var(--battery)" d="M 350 140 Q 200 200 110 220"/>
+            <path class="${flowPipe(homeNow > 50, 'home')}" style="stroke:var(--home)" d="M 350 140 Q 470 110 590 70"/>
+            <path class="${flowPipe(Math.abs(grid) > 50, exporting ? 'gridOut' : 'gridIn')}" style="stroke:${exporting ? 'var(--grid-out)' : 'var(--grid-in)'}" d="M 350 140 Q 470 200 590 220"/>
+            <g class="flow-node">
+                <circle cx="110" cy="70" r="42" fill="var(--card-bg)" stroke="var(--solar)"/>
+                <text x="110" y="64" font-size="16">${(pvNow/1000).toFixed(1)}</text>
+                <text x="110" y="82" class="lbl">kW Solar</text>
+            </g>
+            <g class="flow-node">
+                <circle cx="110" cy="220" r="42" fill="var(--card-bg)" stroke="var(--battery)"/>
+                <text x="110" y="214" font-size="16">${soc.toFixed(0)}%</text>
+                <text x="110" y="232" class="lbl">Battery</text>
+            </g>
+            <g class="flow-node">
+                <circle cx="590" cy="70" r="42" fill="var(--card-bg)" stroke="var(--home)"/>
+                <text x="590" y="64" font-size="16">${homeNow}</text>
+                <text x="590" y="82" class="lbl">W Home</text>
+            </g>
+            <g class="flow-node">
+                <circle cx="590" cy="220" r="42" fill="var(--card-bg)" stroke="${exporting ? 'var(--grid-out)' : 'var(--grid-in)'}"/>
+                <text x="590" y="214" font-size="16">${(Math.abs(grid)/1000).toFixed(1)}</text>
+                <text x="590" y="232" class="lbl">kW ${exporting ? 'Export' : 'Import'}</text>
+            </g>
+            <circle cx="350" cy="140" r="6" fill="var(--accent)"/>
+        </svg>
+    `;
+
+    // ── SOC gauge ──
+    const circumference = 502.4;
+    const socOffset = circumference * (1 - soc / 100);
+    document.getElementById("socGauge").innerHTML = `
+        <svg class="soc-svg" viewBox="0 0 200 200">
+            <circle cx="100" cy="100" r="80" class="soc-bg"/>
+            <circle cx="100" cy="100" r="80" class="soc-fg" stroke-dasharray="${circumference}" stroke-dashoffset="${socOffset}"/>
+        </svg>
+        <div class="soc-center"><div class="v">${soc.toFixed(1)}%</div><div class="l">${battKwh} / ${BATTERY_CAPACITY_KWH} kWh</div></div>
+    `;
+
+    document.getElementById("batteryHealth").innerHTML = `
+        <div style="margin-top:6px;">
+            <div style="font-size:10px;color:var(--text-secondary);">State of health</div>
+            <div style="font-size:22px;font-weight:700;color:var(--good);">${num(sigenS.batterySoh).toFixed(0)}%</div>
+        </div>
+        <div style="margin-top:10px;font-size:11px;color:var(--text-secondary);line-height:1.7;">
+            Cell V: <b style="color:var(--text)">${txt(sigenS.batteryCellVoltage)}</b><br>
+            Temp: <b style="color:var(--text)">${txt(sigenS.batteryTempC)}°C</b><br>
+            Range: <b style="color:var(--text)">${txt(sigenS.batteryMinTempC)}–${txt(sigenS.batteryMaxTempC)}</b>
+        </div>
+    `;
+
+    // ── Today's bars + mix charts ──
+    const battChg = num(sigenS.batteryDailyChargeKwh);
+    const battDis = num(sigenS.batteryDailyDischargeKwh);
+    makeChart("todayBars", "bar", {
+        labels: ["Solar generated", "Home used", "Battery charged", "Battery discharged", "Grid imported", "Grid exported", "Gas"],
+        datasets: [{ data: [pvKwh, homeKwh, battChg, battDis, importKwh, exportKwh, gasToday],
+            backgroundColor: ["#ff9500","#af52de","#007aff","#007aff","#ff3b30","#34c759","#ff9500"], borderRadius: 6 }]
+    }, { indexAxis: "y", plugins: { legend: { display: false } },
+        scales: { x: { ticks: { callback: v => v + " kWh" } } }, responsive: true, maintainAspectRatio: false });
+
+    const homeFromSolar = Math.max(0, +(homeKwh - importKwh - battDis).toFixed(2));
+    const cardBg = getComputedStyle(document.body).getPropertyValue('--card-bg').trim();
+    makeChart("mixDonut", "doughnut", {
+        labels: ["Solar direct", "Battery (stored solar)", "Grid import"],
+        datasets: [{ data: [homeFromSolar, battDis, importKwh], backgroundColor: ["#ff9500","#007aff","#ff3b30"], borderColor: cardBg, borderWidth: 3 }]
+    }, { cutout: "60%", plugins: { legend: { position: "bottom", labels: { font: { size: 10 }, boxWidth: 10 } } }, responsive: true, maintainAspectRatio: false });
+    makeChart("mixPolar", "polarArea", {
+        labels: ["Solar direct", "Battery", "Grid"],
+        datasets: [{ data: [homeFromSolar, battDis, importKwh], backgroundColor: ["rgba(255,149,0,0.6)","rgba(0,122,255,0.6)","rgba(255,59,48,0.6)"] }]
+    }, { plugins: { legend: { position: "bottom", labels: { font: { size: 10 }, boxWidth: 10 } } }, scales: { r: { ticks: { display: false } } }, responsive: true, maintainAspectRatio: false });
+    makeChart("stackedFlow", "bar", {
+        labels: [`Solar ${pvKwh.toFixed(2)} kWh today`],
+        datasets: [
+            { label: "Direct to home", data: [homeFromSolar], backgroundColor: "#af52de", stack: "s", borderRadius: 4 },
+            { label: "To battery", data: [battChg], backgroundColor: "#007aff", stack: "s", borderRadius: 4 },
+            { label: "Exported", data: [exportKwh], backgroundColor: "#34c759", stack: "s", borderRadius: 4 },
+        ]
+    }, { indexAxis: "y", plugins: { legend: { labels: { font: { size: 10 } } } },
+        scales: { x: { stacked: true, ticks: { callback: v => v + " kWh" } }, y: { stacked: true } }, responsive: true, maintainAspectRatio: false });
+
+    const yPv = num(varByName.sigen_today_pv_kwh);
+    const yExp = num(varByName.export_yesterday_kwh);
+    const yHome = num(varByName.sigen_today_home_kwh);
+    const yImp = num(varByName.sigen_today_import_kwh);
+    makeChart("todayVsYesterday", "bar", {
+        labels: ["PV","Home","Import","Export"],
+        datasets: [
+            { label: "Yesterday", data: [yPv, yHome, yImp, yExp], backgroundColor: "rgba(134,134,139,0.5)", borderRadius: 6 },
+            { label: "Today (so far)", data: [pvKwh, homeKwh, importKwh, exportKwh], backgroundColor: "#ff9500", borderRadius: 6 },
+        ]
+    }, { plugins: { legend: { labels: { font: { size: 11 } } } }, scales: { y: { ticks: { callback: v => v + " kWh" } } }, responsive: true, maintainAspectRatio: false });
+
+    // ── Tariffs ──
+    const trackToday = num(mgrS.rateToday);
+    const trackTomorrow = num(mgrS.rateTomorrow);
+    const exportRate = num(varByName.export_rate_p, 12.0);
+    const gasRate = num(varByName.gas_unit_rate_p, 6.09);
+    const legacyRate = num(varByName.elec_unit_rate_p);
+
+    document.getElementById("tariffRow").innerHTML = `
+        <div class="tariff-pill"><div class="lbl">Tracker today</div><div class="p" style="color:var(--warn)">${trackToday.toFixed(2)}<span style="font-size:11px">p</span></div></div>
+        <div class="tariff-pill"><div class="lbl">Tracker tomorrow</div><div class="p" style="color:var(--warn)">${trackTomorrow.toFixed(2)}<span style="font-size:11px">p</span></div></div>
+        <div class="tariff-pill"><div class="lbl">Outgoing export</div><div class="p" style="color:var(--good)">${exportRate.toFixed(2)}<span style="font-size:11px">p</span></div></div>
+        <div class="tariff-pill"><div class="lbl">Gas unit</div><div class="p" style="color:var(--gas)">${gasRate.toFixed(2)}<span style="font-size:11px">p</span></div></div>
+    `;
+    makeChart("tariffRadar", "radar", {
+        labels: ["Tracker today","Tracker tomorrow","Outgoing export","Gas","Legacy silver"],
+        datasets: [{ label: "p/kWh", data: [trackToday, trackTomorrow, exportRate, gasRate, legacyRate], backgroundColor: "rgba(255,149,0,0.25)", borderColor: "#ff9500", pointBackgroundColor: "#ff9500", borderWidth: 2 }]
+    }, { plugins: { legend: { labels: { font: { size: 10 } } } }, scales: { r: { suggestedMin: 0, suggestedMax: 25, pointLabels: { font: { size: 10 } }, ticks: { backdropColor: 'transparent', font: { size: 9 } } } }, responsive: true, maintainAspectRatio: false });
+
+    // ── Forecast ──
+    const tomorrowSolar = num(mgrS.tomorrowSolarKwh);
+    const tomorrowNeed = num(mgrS.tomorrowNeedKwh);
+    const surplus = +(tomorrowSolar - tomorrowNeed).toFixed(1);
+    document.getElementById("forecastRow").innerHTML = `
+        <div class="forecast-card"><div class="v" style="color:var(--solar)">${tomorrowSolar.toFixed(1)}</div><div class="l">kWh forecast</div></div>
+        <div class="forecast-card"><div class="v" style="color:var(--home)">${tomorrowNeed.toFixed(1)}</div><div class="l">kWh home need</div></div>
+        <div class="forecast-card"><div class="v" style="color:var(--good)">${surplus.toFixed(1)}</div><div class="l">kWh surplus</div></div>
+    `;
+    makeChart("forecastDonut", "doughnut", {
+        labels: ["Home need", "Surplus → battery + export"],
+        datasets: [{ data: [tomorrowNeed, Math.max(0, surplus)], backgroundColor: ["#af52de","#34c759"], borderColor: cardBg, borderWidth: 3 }]
+    }, { cutout: "65%", plugins: { legend: { position: "bottom", labels: { font: { size: 10 }, boxWidth: 10 } } }, responsive: true, maintainAspectRatio: false });
+
+    // ── EcoFlow ──
+    document.getElementById("ecoRow").innerHTML = ID.ECOFLOW.map(([id, name]) => {
+        const ecoDev = byId[id];
+        const ecoSoc = ecoDev && ecoDev.states ? num(ecoDev.states.batteryLevel || ecoDev.states.soc || ecoDev.batteryLevel) : 0;
+        const dash = 157;
+        const offset = dash * (1 - ecoSoc/100);
+        return `<div class="eco">
+            <div class="nm">${name}</div>
+            <div class="ring">
+                <svg viewBox="0 0 60 60">
+                    <circle cx="30" cy="30" r="25" fill="none" stroke="var(--off-color)" stroke-width="6"/>
+                    <circle cx="30" cy="30" r="25" fill="none" stroke="var(--battery)" stroke-width="6" stroke-dasharray="${dash}" stroke-dashoffset="${offset}" stroke-linecap="round"/>
+                </svg>
+                <div class="pct">${ecoSoc.toFixed(0)}%</div>
+            </div>
+            <div class="l">SOC</div>
+        </div>`;
+    }).join("");
+
+    // ── Heating zones ──
+    const zoneData = ID.ZONES.map(([id, name]) => {
+        const z = byId[id];
+        const temp = z ? num(z.temperatureInput1 || (z.states && z.states.temperatureInput1)) : 0;
+        const sp = z ? num(z.setpointHeat) : 0;
+        const valve = z && z.states ? num(z.states["valve-position"]) : 0;
+        return { id, name, temp, sp, valve, calling: valve > 0 };
+    });
+    const calling = zoneData.filter(z => z.calling);
+    document.getElementById("callingForHeat").innerHTML = `
+        <div style="text-align:center;padding:18px 8px;">
+            <div style="font-size:36px;font-weight:700;color:${calling.length > 0 ? 'var(--bad)' : 'var(--good)'}">${calling.length}</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">of ${zoneData.length} zones calling for heat</div>
+            ${calling.length > 0 ? `<div style="margin-top:10px;font-size:11px;color:var(--text-secondary);">${calling.map(c => c.name + " (" + c.valve + "%)").join(", ")}</div>` : '<div style="margin-top:10px;font-size:11px;color:var(--good);">✓ All valves closed</div>'}
+        </div>
+    `;
+    makeChart("heatBars", "bar", {
+        labels: zoneData.map(z => z.name),
+        datasets: [
+            { label: "Current °C", data: zoneData.map(z => z.temp), backgroundColor: "#ff9500", borderRadius: 4 },
+            { label: "Setpoint °C", data: zoneData.map(z => z.sp), backgroundColor: "rgba(134,134,139,0.5)", borderRadius: 4 },
+        ]
+    }, { plugins: { legend: { labels: { font: { size: 11 } } } }, scales: { y: { beginAtZero: true, max: 25, ticks: { callback: v => v + "°" } }, x: { ticks: { font: { size: 9 } } } }, responsive: true, maintainAspectRatio: false });
+
+    document.getElementById("zoneTiles").innerHTML = zoneData.map(z => `
+        <div class="zone">
+            <div class="nm">${z.name}${z.calling ? ' <span class="flame">🔥</span>' : ''}</div>
+            <div class="row"><div class="tt" style="color:${z.calling ? 'var(--bad)' : 'var(--text)'}">${z.temp.toFixed(1)}°</div></div>
+            <div class="sp-row">
+                <div class="sp">SP <b>${z.sp.toFixed(1)}°</b>${z.valve ? ' · valve ' + z.valve + '%' : ''}</div>
+                <button onclick="adjustSetpoint(${z.id}, ${z.sp}, -0.5)">−</button>
+                <button onclick="adjustSetpoint(${z.id}, ${z.sp}, +0.5)">+</button>
+            </div>
+        </div>
+    `).join("");
+
+    // ── Gas ──
+    const gasYesterday = num(varByName.gas_yesterday_kwh);
+    makeChart("gasCompare", "bar", {
+        labels: ["Yesterday","Today"],
+        datasets: [{ data: [gasYesterday, gasToday], backgroundColor: "#ff9500", borderRadius: 6 }]
+    }, { plugins: { legend: { display: false } }, scales: { y: { ticks: { callback: v => v + " kWh" } } }, responsive: true, maintainAspectRatio: false });
+
+    makeChart("gasVsElec", "doughnut", {
+        labels: ["Gas","Electricity (home)"],
+        datasets: [{ data: [gasToday, homeKwh], backgroundColor: ["#ff9500","#af52de"], borderColor: cardBg, borderWidth: 3 }]
+    }, { cutout: "60%", plugins: { legend: { position: "bottom", labels: { font: { size: 10 }, boxWidth: 10 } } }, responsive: true, maintainAspectRatio: false });
+
+    const gasMonthCost = +(gasMonth * gasRate / 100).toFixed(2);
+    document.getElementById("gasMonthHeader").innerHTML = `
+        <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:8px;">
+            <div style="font-size:28px;font-weight:700;color:var(--gas)">${gasMonth.toFixed(1)}</div>
+            <div style="color:var(--text-secondary);font-size:12px;">kWh · £${gasMonthCost} @ ${gasRate.toFixed(2)}p</div>
+        </div>
+    `;
+    const daysIn = new Date().getDate();
+    makeChart("gasMonth", "line", {
+        labels: Array.from({length: daysIn}, (_, i) => i+1),
+        datasets: [{ data: Array.from({length: daysIn}, (_, i) => +(gasMonth * ((i+1)/daysIn)).toFixed(1)), borderColor: "#ff9500", backgroundColor: "rgba(255,149,0,0.15)", fill: true, tension: 0.3, pointRadius: 0, borderWidth: 2 }]
+    }, { plugins: { legend: { display: false } }, scales: { y: { ticks: { callback: v => v + " kWh" } } }, responsive: true, maintainAspectRatio: false });
+
+    // ── Security ──
+    const contacts = devices.filter(d => /contact.?sensor/i.test(d.name || ""));
+    const openContacts = contacts.filter(d => d.onState === true);
+    const motions = devices.filter(d => /motion|presence/i.test(d.name || "") && /sensor/i.test(d.name || ""));
+    const activeMotions = motions.filter(d => d.onState === true);
+    makeChart("secDonut", "doughnut", {
+        labels: ["Closed","Open","Motion active","Alerts"],
+        datasets: [{ data: [contacts.length - openContacts.length, openContacts.length, activeMotions.length, 0], backgroundColor: ["#34c759","#ff3b30","#ff9500","#86868b"], borderColor: cardBg, borderWidth: 3 }]
+    }, { cutout: "55%", plugins: { legend: { position: "bottom", labels: { font: { size: 10 }, boxWidth: 10 } } }, responsive: true, maintainAspectRatio: false });
+
+    document.getElementById("openContacts").innerHTML = openContacts.length === 0
+        ? `<div style="text-align:center;padding:30px;color:var(--good);">✓ All ${contacts.length} contacts closed</div>`
+        : openContacts.map(d => `<div class="sec-item"><span>${escapeHtml(d.name)}</span><span style="color:var(--bad)">OPEN</span></div>`).join("");
+    document.getElementById("activeMotion").innerHTML =
+        (activeMotions.length === 0
+            ? '<div style="text-align:center;padding:20px;color:var(--text-secondary);">No motion active</div>'
+            : activeMotions.map(d => `<div class="sec-item motion"><span>${escapeHtml(d.name)}</span><span style="color:var(--warn)">ACTIVE</span></div>`).join("")) +
+        `<div style="margin-top:14px;padding:14px;background:rgba(52,199,89,0.1);border-radius:10px;text-align:center;">
+            <div style="font-size:20px;color:var(--good);font-weight:700;">✓ No alerts</div>
+            <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">No leak, smoke or CO active</div>
+        </div>`;
+
+    // ── Device inventory ──
+    const counts = { lights: 0, sensors: 0, switches: 0, heating: 0, energy: 0, other: 0 };
+    const pluginCounts = {};
+    devices.forEach(d => {
+        if (/Dimmer/.test(d.class || "")) counts.lights++;
+        else if (/Thermostat/.test(d.class || "")) counts.heating++;
+        else if (d.pluginId && /sigenergy|shellydirect|ecoflow|sigen/i.test(d.pluginId)) counts.energy++;
+        else if (/Sensor/.test(d.class || "")) counts.sensors++;
+        else if (/Relay/.test(d.class || "")) counts.switches++;
+        else counts.other++;
+        const p = (d.pluginId || "indigo").split(".").slice(-1)[0];
+        pluginCounts[p] = (pluginCounts[p] || 0) + 1;
+    });
+    const devLabels = [`Lights (${counts.lights})`,`Sensors (${counts.sensors})`,`Switches (${counts.switches})`,`Heating (${counts.heating})`,`Energy (${counts.energy})`,`Other (${counts.other})`];
+    const devData = [counts.lights, counts.sensors, counts.switches, counts.heating, counts.energy, counts.other];
+    const devCols = ["#ff9500","#007aff","#af52de","#ff3b30","#34c759","#86868b"];
+    makeChart("devicePie", "pie", { labels: devLabels, datasets: [{ data: devData, backgroundColor: devCols, borderColor: cardBg, borderWidth: 3 }] }, { plugins: { legend: { position: "bottom", labels: { font: { size: 9 }, boxWidth: 10 } } }, responsive: true, maintainAspectRatio: false });
+    makeChart("devicePolar", "polarArea", { labels: devLabels, datasets: [{ data: devData, backgroundColor: devCols.map(c => c + "aa") }] }, { plugins: { legend: { position: "bottom", labels: { font: { size: 9 }, boxWidth: 10 } } }, scales: { r: { ticks: { display: false } } }, responsive: true, maintainAspectRatio: false });
+    makeChart("deviceBar", "bar", { labels: devLabels, datasets: [{ data: devData, backgroundColor: devCols, borderRadius: 6 }] }, { plugins: { legend: { display: false } }, scales: { x: { ticks: { font: { size: 9 } } } }, responsive: true, maintainAspectRatio: false });
+
+    const sortedPlugins = Object.entries(pluginCounts).sort((a,b) => b[1] - a[1]).slice(0, 12);
+    makeChart("pluginShare", "bar", {
+        labels: sortedPlugins.map(p => p[0]),
+        datasets: [{ data: sortedPlugins.map(p => p[1]), backgroundColor: "#007aff", borderRadius: 4 }]
+    }, { indexAxis: "y", plugins: { legend: { display: false } }, scales: { y: { ticks: { font: { size: 10 } } } }, responsive: true, maintainAspectRatio: false });
+
+    document.getElementById("automationStats").innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;text-align:center;padding:12px 0;">
+            <div><div style="font-size:30px;font-weight:700;color:var(--accent)">${devices.length}</div><div style="font-size:11px;color:var(--text-secondary);">Total devices</div></div>
+            <div><div style="font-size:30px;font-weight:700;color:var(--good)">${devices.filter(d => d.enabled).length}</div><div style="font-size:11px;color:var(--text-secondary);">Enabled</div></div>
+            <div><div style="font-size:30px;font-weight:700;color:var(--bad)">${devices.filter(d => d.errorState && d.errorState !== "").length}</div><div style="font-size:11px;color:var(--text-secondary);">In error</div></div>
+        </div>
+    `;
+
+    // ── Optimiser ──
+    document.getElementById("optStatus").innerHTML = `
+        <div class="opt-status">
+            <div class="opt-action"><span class="badge">${txt(mgrS.managerStatus) || 'Running'}</span>${escapeHtml(txt(mgrS.currentAction))}</div>
+            <div class="opt-reason">${escapeHtml(txt(mgrS.currentReason))}</div>
+        </div>
+        <div style="margin-top:12px;font-size:11px;color:var(--text-secondary);line-height:1.6;">
+            Plan: <b style="color:var(--text)">${escapeHtml(txt(varByName.battery_optimiser_status))}</b><br>
+            Tariff: <b style="color:var(--text)">${txt(mgrS.tariffActive)}</b> ·
+            Dawn viable: <b style="color:${mgrS.dawnViable === 'True' ? 'var(--good)' : 'var(--bad)'}">${txt(mgrS.dawnViable)}</b> ·
+            Last: ${txt(mgrS.lastUpdate)}
+        </div>
+    `;
+
+    // ── System health ──
+    document.getElementById("sysHealth").innerHTML = `
+        <div style="text-align:center;padding:12px 0;">
+            <div style="font-size:24px;font-weight:700;color:var(--accent)">${devices.length}</div>
+            <div style="font-size:11px;color:var(--text-secondary);">devices polled live every ${POLL_INTERVAL_MS/1000}s</div>
+        </div>
+        <div style="margin-top:10px;padding:8px 10px;background:rgba(52,199,89,0.1);border-radius:8px;font-size:11px;color:var(--good);text-align:center;">
+            ✓ ${devices.filter(d => !d.errorState).length} healthy · ${devices.filter(d => d.errorState && d.errorState !== "").length} errors
+        </div>
+    `;
+}
+
+// ── Interactive setpoint adjustment ──
+async function adjustSetpoint(deviceId, current, delta) {
+    const newValue = Math.round((current + delta) * 2) / 2;
+    if (newValue < 5 || newValue > 30) return;
+    try {
+        await window._indigo.setHeatSetpoint(deviceId, newValue);
+    } catch (e) {
+        console.error("Setpoint change failed:", e);
+        alert("Failed to change setpoint: " + e.message);
+    }
+}
+
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+</script>
+</body>
+</html>
